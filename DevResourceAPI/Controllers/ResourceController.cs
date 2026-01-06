@@ -18,8 +18,10 @@ public class ResourceController : ControllerBase
     }
 
 [HttpGet]
+
 public async Task<ActionResult<IEnumerable<ResourceDto>>> GetResources(string? searchTerm)
 {
+   
     // 1. IQueryable kullanarak sorguyu "hazırla" (Henüz veritabanına gitmedik)
     var query = _context.Resources.AsQueryable();
 

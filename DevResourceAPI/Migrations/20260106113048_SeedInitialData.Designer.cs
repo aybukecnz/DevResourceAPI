@@ -2,6 +2,7 @@
 using DevResourceAPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -10,9 +11,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DevResourceAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260106113048_SeedInitialData")]
+    partial class SeedInitialData
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -98,48 +101,6 @@ namespace DevResourceAPI.Migrations
                         .IsUnique();
 
                     b.ToTable("Resources");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            CategoryId = 1,
-                            Description = "Kapsamlı .NET ve C# rehberi.",
-                            Title = "Microsoft .NET Documentation",
-                            Url = "https://learn.microsoft.com/dotnet/"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            CategoryId = 2,
-                            Description = "Modern Frontend geliştirme kılavuzu.",
-                            Title = "React Official Docs",
-                            Url = "https://react.dev/"
-                        },
-                        new
-                        {
-                            Id = 3,
-                            CategoryId = 3,
-                            Description = "Web uygulama güvenliği için en kritik 10 risk listesi.",
-                            Title = "OWASP Top Ten",
-                            Url = "https://owasp.org/www-project-top-ten/"
-                        },
-                        new
-                        {
-                            Id = 4,
-                            CategoryId = 4,
-                            Description = "İleri seviye SQL ve DB yönetimi dersleri.",
-                            Title = "PostgreSQL Tutorial",
-                            Url = "https://www.postgresqltutorial.com/"
-                        },
-                        new
-                        {
-                            Id = 5,
-                            CategoryId = 5,
-                            Description = "Yapay zeka modelleri için açık kaynaklı kütüphane.",
-                            Title = "TensorFlow Hub",
-                            Url = "https://www.tensorflow.org/"
-                        });
                 });
 
             modelBuilder.Entity("DevResourceAPI.Models.Resource", b =>
