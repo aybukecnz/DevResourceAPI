@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using DevResourceAPI.Data;
 using DevResourceAPI.Models;
 using DevResourceAPI.DTOs;
+using Microsoft.AspNetCore.JsonPatch;
 
 namespace DevResourceAPI.Controllers;   
 [ApiController]
@@ -124,4 +125,21 @@ public async Task<ActionResult<Resource>> CreateResource(Resource resource)
         return Ok(new { message = $"{id} ID'li kaynak başarıyla silindi." });
     }
 
+[HttpPatch("{id}")]
+public async Task<IActionResult> PatchResource(int id, [FromBody] JsonPatchDocument<Resource> patchDoc)
+{
+    if (patchDoc == null) return BadRequest();
+
+    var resource = await _context.Resources.FindAsync(id);
+    if (resource == null) return NotFound("Kaynak bulunamadı.");
+
+    // Değişiklikleri mevcut nesneye uygula
+    patchDoc.ApplyTo(resource, ModelState);
+
+    // Uygulama sonrası model doğrulaması yap
+    if (!TryValidateModel(resource)) return BadRequest(ModelState);
+
+    await _context.SaveChangesAsync();
+    return NoContent();
+}
 }

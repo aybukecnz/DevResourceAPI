@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using DevResourceAPI.Data;
 using DevResourceAPI.Models;
 using Microsoft.OpenApi.Models;
+using Microsoft.AspNetCore.JsonPatch;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,8 +12,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
 );
 
-// Controllers
-builder.Services.AddControllers();
+// Controllers güncellendi .AddNewtonsoftJson() eklendi 
+builder.Services.AddControllers().AddNewtonsoftJson();
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();
