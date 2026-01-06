@@ -1,35 +1,52 @@
 using Microsoft.AspNetCore.Diagnostics;
-using DevResourceAPI.Models;
 using Microsoft.EntityFrameworkCore;
 using DevResourceAPI.Data;
+using DevResourceAPI.Models;
+using Microsoft.OpenApi.Models;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Veritabanı servisini ekle
+// DB
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
 );
-// Add services to the container.
 
+// Controllers
 builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+
+// Swagger
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "DevResource API",
+        Version = "v1",
+        Description = "Yazılımcılar için kaynak kütüphanesi API",
+        Contact = new OpenApiContact
+        {
+            Name = "Aybüke Canöz",
+            Url = new Uri("https://github.com/aybukecnz")
+        }
+    });
+});
 
 var app = builder.Build();
 
-// GLOBAL HATA YÖNETİMİ 
+// Global Exception
 app.UseExceptionHandler(errorApp =>
 {
     errorApp.Run(async context =>
     {
-        context.Response.StatusCode = 500; // İç Sunucu Hatası
+        context.Response.StatusCode = 500;
         context.Response.ContentType = "application/json";
 
-        var exceptionHandlerPathFeature = context.Features.Get<IExceptionHandlerPathFeature>();
-        var exception = exceptionHandlerPathFeature?.Error;
+        var feature = context.Features.Get<IExceptionHandlerPathFeature>();
+        var exception = feature?.Error;
 
         var response = new ErrorResponse
         {
-            StatusCode = context.Response.StatusCode,
+            StatusCode = 500,
             Message = "Beklenmedik bir sunucu hatası oluştu.",
             Detailed = app.Environment.IsDevelopment() ? exception?.Message : null
         };
@@ -37,16 +54,16 @@ app.UseExceptionHandler(errorApp =>
         await context.Response.WriteAsJsonAsync(response);
     });
 });
-// Configure the HTTP request pipeline.
+
+// HTTP pipeline
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
 app.UseHttpsRedirection();
-
 app.UseAuthorization();
-
 app.MapControllers();
 
 app.Run();
