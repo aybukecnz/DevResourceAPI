@@ -23,12 +23,12 @@ public async Task<ActionResult<IEnumerable<ResourceDto>>> GetResources(string? s
     // 1. IQueryable kullanarak sorguyu "hazırla" (Henüz veritabanına gitmedik)
     var query = _context.Resources.AsQueryable();
 
-    // 2. Filtreleme (Sorgu hala SQL'e dönüşme aşamasında)
+    // 2. Filtreleme Mantığı (Sadece arama kelimesi varsa çalışır)
     if (!string.IsNullOrWhiteSpace(searchTerm))
     {
-        var lowerSearch = searchTerm.ToLower();
-        query = query.Where(r => r.Title.ToLower().Contains(lowerSearch) 
-                              || r.Description.ToLower().Contains(lowerSearch));
+        searchTerm = searchTerm.ToLower();
+        query = query.Where(r => r.Title.ToLower().Contains(searchTerm) 
+                              || r.Description.ToLower().Contains(searchTerm));
     }
 
     // 3. Sadece ihtiyacımız olan kolonları SELECT et (Performans için önemli)
@@ -69,4 +69,57 @@ public async Task<ActionResult<Resource>> CreateResource(Resource resource)
     await _context.SaveChangesAsync();
     
     return Ok(resource);
-}}
+}
+// PUT: api/resource/5 (Var olan bir kaynağı güncelle)
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateResource(int id, Resource resource)
+    {
+        // Güvenlik Kontrolü: URL'deki ID ile gönderilen nesnedeki ID uyuşuyor mu?
+        if (id != resource.Id)
+        {
+            return BadRequest("Hata: ID uyuşmazlığı.");
+        }
+
+        // Kategori var mı kontrolü (Güncellerken olmayan bir kategoriye atamasınlar)
+        var categoryExists = await _context.Categories.AnyAsync(c => c.Id == resource.CategoryId);
+        if (!categoryExists)
+        {
+            return BadRequest("Hata: Belirttiğiniz yeni kategori ID'si bulunamadı.");
+        }
+
+        // Entity Framework'e bu nesnenin değiştirildiğini söylüyoruz
+        _context.Entry(resource).State = EntityState.Modified;
+
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!await _context.Resources.AnyAsync(e => e.Id == id))
+            {
+                return NotFound("Hata: Güncellemek istediğiniz kaynak bulunamadı.");
+            }
+            throw;
+        }
+
+        return NoContent(); // 204 No Content: İşlem başarılı, dönecek veri yok.
+    }
+
+    // DELETE: api/resource/5 (Bir kaynağı sil)
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteResource(int id)
+    {
+        var resource = await _context.Resources.FindAsync(id);
+        if (resource == null)
+        {
+            return NotFound("Hata: Silinmek istenen kaynak bulunamadı.");
+        }
+
+        _context.Resources.Remove(resource);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = $"{id} ID'li kaynak başarıyla silindi." });
+    }
+
+}
