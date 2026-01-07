@@ -1,9 +1,0 @@
-C:\Users\aybuke\Desktop\staj\DevResourceAPI\obj\Debug\net10.0\DevResourceAPI.csproj.AssemblyReference.cache
-C:\Users\aybuke\Desktop\staj\DevResourceAPI\obj\Debug\net10.0\rpswa.dswa.cache.json
-C:\Users\aybuke\Desktop\staj\DevResourceAPI\obj\Debug\net10.0\DevResourceAPI.GeneratedMSBuildEditorConfig.editorconfig
-C:\Users\aybuke\Desktop\staj\DevResourceAPI\obj\Debug\net10.0\DevResourceAPI.AssemblyInfoInputs.cache
-C:\Users\aybuke\Desktop\staj\DevResourceAPI\obj\Debug\net10.0\DevResourceAPI.AssemblyInfo.cs
-C:\Users\aybuke\Desktop\staj\DevResourceAPI\obj\Debug\net10.0\DevResourceAPI.csproj.CoreCompileInputs.cache
-C:\Users\aybuke\Desktop\staj\DevResourceAPI\obj\Debug\net10.0\DevResourceAPI.MvcApplicationPartsAssemblyInfo.cs
-C:\Users\aybuke\Desktop\staj\DevResourceAPI\obj\Debug\net10.0\DevResourceAPI.MvcApplicationPartsAssemblyInfo.cache
-C:\Users\aybuke\Desktop\staj\DevResourceAPI\obj\Debug\net10.0\DevResourceAPI.sourcelink.json
