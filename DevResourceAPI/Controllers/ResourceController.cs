@@ -18,37 +18,50 @@ public class ResourceController : ControllerBase
         _context = context;
     }
 
-[HttpGet]
-
-public async Task<ActionResult<IEnumerable<ResourceDto>>> GetResources(string? searchTerm)
-{
-   
-    // 1. IQueryable kullanarak sorguyu "hazırla" (Henüz veritabanına gitmedik)
+    [HttpGet]
+public async Task<ActionResult<IEnumerable<ResourceDto>>> GetResources(
+    [FromQuery] string? searchTerm,
+    [FromQuery] int pageNumber = 1,
+    [FromQuery] int pageSize = 10)
+{  
     var query = _context.Resources.AsQueryable();
 
-    // 2. Filtreleme Mantığı (Sadece arama kelimesi varsa çalışır)
+    // 1. Filtreleme (Arama)
     if (!string.IsNullOrWhiteSpace(searchTerm))
     {
         searchTerm = searchTerm.ToLower();
-        query = query.Where(r => r.Title.ToLower().Contains(searchTerm) 
-                              || r.Description.ToLower().Contains(searchTerm));
+        query = query.Where(r => 
+            (r.Title != null && r.Title.ToLower().Contains(searchTerm)) || 
+            (r.Description != null && r.Description.ToLower().Contains(searchTerm)) || 
+            (r.Category != null && r.Category.Name != null && r.Category.Name.ToLower().Contains(searchTerm)));
     }
 
-    // 3. Sadece ihtiyacımız olan kolonları SELECT et (Performans için önemli)
-    // Bu işlem SQL'deki "SELECT Title, Url FROM..." komutuna dönüşür.
+    // 2. Bütünleşik Paging ve Select İşlemi
+// önce toplam kayıt sayısını alalım
+    var totalRecords = await query.CountAsync();
     var result = await query
-        .Select(r => new ResourceDto
+        .OrderBy(r => r.Id) // Sıralama (ID'ye göre artan)
+        .Skip((pageNumber - 1) * pageSize) // Kaçıncı sayfadaysak o kadar atla
+        .Take(pageSize)                   // Sadece istenen sayfa boyutu kadar al
+        .Select(r => new ResourceDto      // Sadece ihtiyacımız olan kolonları çek
         {
             Id = r.Id,
             Title = r.Title,
             Url = r.Url,
-            // Include yapmaya gerek kalmadan doğrudan isme ulaşıyoruz
             CategoryName = r.Category != null ? r.Category.Name : "Kategori Tanımsız"
         })
-        .ToListAsync(); // Veritabanına şuan tek bir optimize SQL sorgusu gitti.
-
-    return Ok(result);
+        .ToListAsync(); 
+// sadece listeye değil, toplam kayıt sayısına da ihtiyacımız var
+    return Ok(new
+    {
+        TotalRecords = totalRecords,
+        PageNumber = pageNumber,
+        PageSize = pageSize,
+        TotalPages = (int)Math.Ceiling((double)totalRecords / (double)pageSize),
+        Data = result
+    });
 }
+
 
     // POST: api/resource (Yeni bir kaynak/link ekle)
     [HttpPost]
