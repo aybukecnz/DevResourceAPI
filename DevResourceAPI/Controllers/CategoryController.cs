@@ -12,7 +12,7 @@ public class CategoryController : ControllerBase
 {
     private readonly AppDbContext _context;
 
-    // Constructor: Veritabanı bağlantısını sisteme enjekte ediyoruz 
+    // Constructor: Veritabanı bağlantısını sisteme enjekte et
     public CategoryController(AppDbContext context)
     {
         _context = context;
@@ -20,6 +20,7 @@ public class CategoryController : ControllerBase
 
     // GET: api/category (Tüm kategorileri getir)
     [HttpGet]
+    [Authorize]
     public async Task<ActionResult<IEnumerable<Category>>> GetCategories()
     {
         return await _context.Categories.ToListAsync();
@@ -27,6 +28,7 @@ public class CategoryController : ControllerBase
 
     // POST: api/category (Yeni kategori ekle)
     [HttpPost]
+    [Authorize]
     public async Task<ActionResult<Category>> CreateCategory(Category category)
     {
         _context.Categories.Add(category);

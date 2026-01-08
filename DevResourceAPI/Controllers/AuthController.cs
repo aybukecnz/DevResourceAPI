@@ -1,11 +1,12 @@
 using DevResourceAPI.Services;
 using Microsoft.AspNetCore.Mvc;
 using DevResourceAPI.DTOs;
-
+using Microsoft.AspNetCore.Authorization;
+using DevResourceAPI.Attributes;
 namespace DevResourceAPI.Controllers;
 [ApiController]
-[Route("api/[controller]")]  // Adres: api/category olacak
-
+[Route("api/[controller]")]  // Address: api/category olacak
+[ApiKey]
 public class AuthController : ControllerBase
 {
     private readonly AuthService _authService;
@@ -16,6 +17,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register")]
+    [ApiKey] // Bu endpoint'e erişim için API anahtarı zorunlu
     public async Task<IActionResult> Register([FromBody] UserDto userDto)
     {
         var user = await _authService.Register(userDto.Username, userDto.Password);
@@ -26,6 +28,7 @@ public class AuthController : ControllerBase
     }
   
     [HttpPost("login")]
+    [ApiKey]
     public async Task<IActionResult> Login([FromBody] UserDto userDto)
     {
         var user = await _authService.Login(userDto.Username, userDto.Password);
@@ -36,8 +39,10 @@ public class AuthController : ControllerBase
     var token = _authService.CreateToken(user);
     return Ok(new { token = token });
     }
-  
+    
     [HttpDelete("delete-account")]
+    [ApiKey]
+    [Authorize]
     public async Task<IActionResult> DeleteAccount([FromBody] UserDto userDto)
     {
     // Senin yazdığın AuthService içindeki DeleteUser metodunu çağırıyoruz

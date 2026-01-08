@@ -5,6 +5,7 @@ using DevResourceAPI.Models;
 using DevResourceAPI.DTOs;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Authorization;
+using DevResourceAPI.Attributes;
 
 namespace DevResourceAPI.Controllers;   
 [ApiController]
@@ -18,8 +19,9 @@ public class ResourceController : ControllerBase
     {
         _context = context;
     }
-    [AllowAnonymous]
+    
     [HttpGet]
+    [Authorize]
 public async Task<ActionResult<IEnumerable<ResourceDto>>> GetResources(
     [FromQuery] string? searchTerm,
     [FromQuery] int pageNumber = 1,
@@ -63,12 +65,14 @@ public async Task<ActionResult<IEnumerable<ResourceDto>>> GetResources(
     });
 }
 
-    [Authorize]
+    
     // POST: api/resource (Yeni bir kaynak/link ekle)
     [HttpPost]
+    [ApiKey]
+    [Authorize]
 public async Task<ActionResult<Resource>> CreateResource(Resource resource)
 {
-    // 1. Kategori var mı? (AnyAsync kullanımı çok performanslıdır)
+    // 1. Kategori var mı? (AnyAsync kullanımı yüksek performans)
     var categoryExists = await _context.Categories.AnyAsync(c => c.Id == resource.CategoryId);
     if (!categoryExists)
     {
@@ -87,9 +91,10 @@ public async Task<ActionResult<Resource>> CreateResource(Resource resource)
     
     return Ok(resource);
 }
-    [Authorize]
+    
 // PUT: api/resource/5 (Var olan bir kaynağı güncelle)
     [HttpPut("{id}")]
+    [Authorize]
     public async Task<IActionResult> UpdateResource(int id, Resource resource)
     {
         // Güvenlik Kontrolü: URL'deki ID ile gönderilen nesnedeki ID uyuşuyor mu?
@@ -123,9 +128,11 @@ public async Task<ActionResult<Resource>> CreateResource(Resource resource)
 
         return NoContent(); // 204 No Content: İşlem başarılı, dönecek veri yok.
     }
-    [Authorize]
+    
     // DELETE: api/resource/5 (Bir kaynağı sil)
     [HttpDelete("{id}")]
+    [ApiKey]
+    [Authorize]
     public async Task<IActionResult> DeleteResource(int id)
     {
         var resource = await _context.Resources.FindAsync(id);
@@ -139,8 +146,9 @@ public async Task<ActionResult<Resource>> CreateResource(Resource resource)
 
         return Ok(new { message = $"{id} ID'li kaynak başarıyla silindi." });
     }
-    [Authorize]
+   
     [HttpPatch("{id}")]
+    [Authorize]
 public async Task<IActionResult> PatchResource(int id, [FromBody] JsonPatchDocument<Resource> patchDoc)
 {
     if (patchDoc == null) return BadRequest();
