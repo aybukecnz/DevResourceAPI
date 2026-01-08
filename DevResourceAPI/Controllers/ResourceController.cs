@@ -4,6 +4,7 @@ using DevResourceAPI.Data;
 using DevResourceAPI.Models;
 using DevResourceAPI.DTOs;
 using Microsoft.AspNetCore.JsonPatch;
+using Microsoft.AspNetCore.Authorization;
 
 namespace DevResourceAPI.Controllers;   
 [ApiController]
@@ -17,7 +18,7 @@ public class ResourceController : ControllerBase
     {
         _context = context;
     }
-
+    [AllowAnonymous]
     [HttpGet]
 public async Task<ActionResult<IEnumerable<ResourceDto>>> GetResources(
     [FromQuery] string? searchTerm,
@@ -37,10 +38,10 @@ public async Task<ActionResult<IEnumerable<ResourceDto>>> GetResources(
     }
 
     // 2. Bütünleşik Paging ve Select İşlemi
-// önce toplam kayıt sayısını alalım
+    // önce toplam kayıt sayısını al
     var totalRecords = await query.CountAsync();
     var result = await query
-        .OrderBy(r => r.Id) // Sıralama (ID'ye göre artan)
+        .OrderBy(r => r.Id) // ID'ye göre artan
         .Skip((pageNumber - 1) * pageSize) // Kaçıncı sayfadaysak o kadar atla
         .Take(pageSize)                   // Sadece istenen sayfa boyutu kadar al
         .Select(r => new ResourceDto      // Sadece ihtiyacımız olan kolonları çek
@@ -51,7 +52,7 @@ public async Task<ActionResult<IEnumerable<ResourceDto>>> GetResources(
             CategoryName = r.Category != null ? r.Category.Name : "Kategori Tanımsız"
         })
         .ToListAsync(); 
-// sadece listeye değil, toplam kayıt sayısına da ihtiyacımız var
+// sadece listeye değil, toplam kayıt sayısına da ihtiyacım var
     return Ok(new
     {
         TotalRecords = totalRecords,
@@ -62,7 +63,7 @@ public async Task<ActionResult<IEnumerable<ResourceDto>>> GetResources(
     });
 }
 
-
+    [Authorize]
     // POST: api/resource (Yeni bir kaynak/link ekle)
     [HttpPost]
 public async Task<ActionResult<Resource>> CreateResource(Resource resource)
@@ -86,6 +87,7 @@ public async Task<ActionResult<Resource>> CreateResource(Resource resource)
     
     return Ok(resource);
 }
+    [Authorize]
 // PUT: api/resource/5 (Var olan bir kaynağı güncelle)
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateResource(int id, Resource resource)
@@ -121,7 +123,7 @@ public async Task<ActionResult<Resource>> CreateResource(Resource resource)
 
         return NoContent(); // 204 No Content: İşlem başarılı, dönecek veri yok.
     }
-
+    [Authorize]
     // DELETE: api/resource/5 (Bir kaynağı sil)
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteResource(int id)
@@ -137,8 +139,8 @@ public async Task<ActionResult<Resource>> CreateResource(Resource resource)
 
         return Ok(new { message = $"{id} ID'li kaynak başarıyla silindi." });
     }
-
-[HttpPatch("{id}")]
+    [Authorize]
+    [HttpPatch("{id}")]
 public async Task<IActionResult> PatchResource(int id, [FromBody] JsonPatchDocument<Resource> patchDoc)
 {
     if (patchDoc == null) return BadRequest();
