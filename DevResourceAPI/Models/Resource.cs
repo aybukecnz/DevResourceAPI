@@ -13,13 +13,15 @@ public class Resource
     [Required(ErrorMessage = "URL zorunludur.")]
     [Url(ErrorMessage = "Lütfen geçerli bir URL adresi giriniz (http:// veya https:// ile başlamalı).")]
     public string Url { get; set; } = string.Empty;
-
     [MaxLength(500, ErrorMessage = "Açıklama 500 karakterden uzun olamaz.")]
-    public string Description { get; set; } = string.Empty;
-
+    public string? Description { get; set; }
     // İlişkisel kural
     [Range(1, int.MaxValue, ErrorMessage = "Lütfen geçerli bir kategori seçiniz.")]
-    public int CategoryId { get; set; }
     
-    public Category? Category { get; set; }
+    public int CategoryId { get; set; }
+     public virtual Category? Category { get; set; }
+    
+    public int UserId { get; set; }
+    public virtual User? User { get; set; } 
+   
 }

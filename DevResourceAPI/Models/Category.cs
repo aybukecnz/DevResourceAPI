@@ -8,5 +8,7 @@ public class Category
     [MinLength(2, ErrorMessage = "Kategori adı en az 2 karakter olmalıdır.")]
     public string Name { get; set; } = string.Empty;
     // Relation: Bir kategorinin birden fazla kaynağı olabilir (1-N)
-    public List<Resource> Resources { get; set; } = new();
+    public int UserId { get; set; } // Sahiplik için zorunlu
+    public ICollection<Resource> Resources { get; set; } = new HashSet<Resource>();
+    public virtual User User { get; set; } = null!;
 }

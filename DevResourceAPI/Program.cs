@@ -22,16 +22,19 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-// --- 2. VERİTABANI ---
+// VERİTABANI 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
 );
-
-// --- 3. CONTROLLERS ---
+// Servisleri kaydet
+builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<IResourceService, ResourceService>();
+//builder.Services.AddScoped<IAuthService, AuthService>();
+// CONTROLLERS 
 builder.Services.AddControllers().AddNewtonsoftJson();
 builder.Services.AddScoped<AuthService>(); // Senin servisin
 
-// --- 4. SWAGGER (HATASIZ KONFİGÜRASYON) ---
+//SWAGGER (HATASIZ KONFİGÜRASYON)
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -61,7 +64,7 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-// --- 5. PIPELINE AYARLARI ---
+// PIPELINE AYARLARI 
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

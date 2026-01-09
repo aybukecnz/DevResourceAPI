@@ -6,7 +6,7 @@ using DevResourceAPI.Attributes;
 namespace DevResourceAPI.Controllers;
 [ApiController]
 [Route("api/[controller]")]  // Address: api/category olacak
-[ApiKey]
+[ApiKey] // Bu endpoint'e erişim için API anahtarı zorunlu
 public class AuthController : ControllerBase
 {
     private readonly AuthService _authService;
@@ -17,7 +17,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register")]
-    [ApiKey] // Bu endpoint'e erişim için API anahtarı zorunlu
+    [ApiKey] 
     public async Task<IActionResult> Register([FromBody] UserDto userDto)
     {
         var user = await _authService.Register(userDto.Username, userDto.Password);
@@ -39,6 +39,21 @@ public class AuthController : ControllerBase
     var token = _authService.CreateToken(user);
     return Ok(new { token = token });
     }
+    [HttpGet("me")]
+    [Authorize] // Sadece giriş yapanlar görebilir
+    public async Task<IActionResult> GetMyProfile()
+{
+    // 1. Token'dan User ID'yi al
+    var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+    if (userIdClaim == null) return Unauthorized();
+
+    int userId = int.Parse(userIdClaim.Value);
+
+    // 2. Veritabanından kullanıcıyı bul
+    var user = await _authService.GetProfileAsync(userId);
+    if (user == null) return NotFound("Kullanıcı bulunamadı.");
+    return Ok(user);
+}
     
     [HttpDelete("delete-account")]
     [ApiKey]

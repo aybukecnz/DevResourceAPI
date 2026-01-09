@@ -17,7 +17,7 @@ public class AuthService
     public AuthService(AppDbContext context, IConfiguration configuration)
 {
     _context = context;
-    _configuration = configuration; // İşte eksik olan parça buydu!
+    _configuration = configuration; 
 }
 
     // Kullanıcı Kaydı
@@ -95,16 +95,14 @@ public class AuthService
     await _context.SaveChangesAsync();
     return true;
 }
-
-
-
-public string CreateToken(User user)
+    // JWT Token Oluşturma
+    public string CreateToken(User user)
 {
     // Kullanıcı bilgilerini (Claim) token içine yerleştiriyoruz
     var claims = new List<Claim>
     {
         new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-        new Claim(ClaimTypes.Name, user.Username)
+        new Claim(ClaimTypes.Name, user.Username),
     };
 
     // Anahtarı appsettings'ten oku
@@ -127,4 +125,15 @@ public string CreateToken(User user)
 
     return tokenHandler.WriteToken(token);
 }
-}
+    // Kullanıcı Profili Getirme
+    public async Task<object?> GetProfileAsync(int userId)
+{       
+    var user = await _context.Users.FindAsync(userId);
+    if (user == null) return null;
+
+    return new
+    {
+        message = $"Hoş geldin {user.Username} !!",
+        user.Username,
+    };
+}}

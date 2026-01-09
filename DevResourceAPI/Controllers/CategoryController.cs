@@ -18,47 +18,89 @@ public class CategoryController : ControllerBase
         _context = context;
     }
 
-    // GET: api/category (Tüm kategorileri getir)
+    // GET: api/category 
     [HttpGet]
-    [Authorize]
-    public async Task<ActionResult<IEnumerable<Category>>> GetCategories()
+    [AllowAnonymous]
+    public async Task<IActionResult> GetCategories()
     {
-        return await _context.Categories.ToListAsync();
+        var categories = await _context.Categories
+        .Include(c => c.User) 
+        .Select(c => new { 
+            c.Id, 
+            c.Name, 
+            OwnerName = c.User != null ? c.User.Username : "Anonim" 
+        })
+        .ToListAsync();
+    return Ok(categories);
     }
 
-    // POST: api/category (Yeni kategori ekle)
+    // POST: api/category 
     [HttpPost]
     [Authorize]
     public async Task<ActionResult<Category>> CreateCategory(Category category)
     {
+        // 1. Token'dan Kullanıcı ID'sini Al
+        var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+        if (userIdClaim!= null)
+        {
+            category.UserId = int.Parse(userIdClaim.Value);
+        }
         _context.Categories.Add(category);
         await _context.SaveChangesAsync();
         return Ok(category);
     }
-    // DELETE: api/category/{id} (Kategori sil)
+    // DELETE: api/category/{id} 
     [HttpDelete("{id}")]
-    [Authorize] // Sadece giriş yapmış user silebilir
-    public async Task<IActionResult> DeleteCategory(int id)
+    [Authorize]
+    public async Task<IActionResult> DeleteCategory(int id, [FromQuery] bool confirm = false)
+{
+    // 1. Onay Kontrolü
+    if (!confirm)
     {
-       // 1. Kategoriyi ve içindeki kaynakları bul
-        var category = await _context.Categories
-                                     .Include(c => c.Resources) // İlişkili kaynakları da getir
-                                     .FirstOrDefaultAsync(c => c.Id == id);
-        // 2. Kategori yoksa hata ver
-        if (category == null)
-        {
-            return NotFound("Böyle bir kategori bulunamadı.");
-        }
+        return BadRequest(new { message = "Bu kategoriyi silmek istediğinize emin misiniz? Lütfen 'confirm=true' parametresini ekleyin." });
+    }
 
-        // 3. KUTU DOLU MU? (Güvenlik Önlemi)
-        if (category.Resources.Any())
-        {
-            return BadRequest($"Bu kategoriyi silemezsin! İçinde {category.Resources.Count} adet kaynak var. Önce onları silmelisin.");
-        }
+    // 2. Token'dan Kullanıcı Bilgilerini Al (ID ve Rol)
+    var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+    var userRoleClaim = User.FindFirst(System.Security.Claims.ClaimTypes.Role); // Rol bilgisini çekiyoruz
 
-        // 4. İçi boşsa sil
-        _context.Categories.Remove(category);
-        await _context.SaveChangesAsync();
+    if (userIdClaim == null || userRoleClaim == null) 
+    {
+        return Unauthorized(new { message = "Kimlik bilgileri doğrulanamadı. Lütfen tekrar giriş yapın." });
+    }
 
-        return Ok($"'{category.Name}' kategorisi başarıyla silindi.");
-    }}
+    int currentUserId = int.Parse(userIdClaim.Value);
+    string currentUserRole = userRoleClaim.Value;
+
+    // 3. Kategoriyi ve Kaynaklarını Veritabanından Getir
+    var category = await _context.Categories
+        .Include(c => c.Resources)
+        .FirstOrDefaultAsync(c => c.Id == id);
+
+    // 4. Var mı Kontrolü
+    if (category == null) 
+    {
+        return NotFound(new { message = "Kategori bulunamadı." });
+    }
+
+    // 5. YETKİ VE SAHİPLİK KONTROLÜ (Hibrit Model)
+    // Eğer kullanıcı sahibi DEĞİLSE VE Manager DEĞİLSE silme işlemini reddet
+    if (category.UserId != currentUserId && currentUserRole != "Manager")
+    {
+        return StatusCode(403, new { message = "Bu işlem için yetkiniz yok. Sadece içerik sahibi veya bir yönetici silebilir." });
+    }
+
+    // 6. Bağımlılık Kontrolü (İçinde Resource varsa silmeyi engeller)
+    if (category.Resources.Any())
+    {
+        return BadRequest(new { 
+            message = $"Kategori boş değil! İçinde {category.Resources.Count} adet kaynak var. Lütfen önce kaynakları silin." 
+        });
+    }
+
+    // 7. Silme ve Kaydetme
+    _context.Categories.Remove(category);
+    await _context.SaveChangesAsync();
+
+    return Ok(new { message = "Kategori başarıyla silindi." });}
+}
