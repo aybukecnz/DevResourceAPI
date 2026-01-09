@@ -1,139 +1,113 @@
-using System.Security.Cryptography;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text;
+using BCrypt.Net; 
 using DevResourceAPI.Data;
+using DevResourceAPI.DTOs;
 using DevResourceAPI.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using System.Security.Claims;
-using System.IdentityModel.Tokens.Jwt;
 
 namespace DevResourceAPI.Services;
 
-public class AuthService
+public class AuthService : IAuthService
 {
     private readonly AppDbContext _context;
     private readonly IConfiguration _configuration;
 
     public AuthService(AppDbContext context, IConfiguration configuration)
-{
-    _context = context;
-    _configuration = configuration; 
-}
-
-    // Kullanıcı Kaydı
-    public async Task<User?> Register(string username, string password)
     {
-        // Kullanıcıya net bir uyarı:
-    if (password.Length < 6)
-    {
-        // Bu hata Swagger'da kullanıcıya görünür
-        throw new Exception("Şifre en az 6 karakter olmalıdır. Test için: 123456 kullanabilirsin.");
+        _context = context;
+        _configuration = configuration;
     }
 
-    if (await UserExists(username)) return null;
-        // 1. Kullanıcı zaten var mı kontrolü
-        if (await UserExists(username)) return null;
+    // --- KAYIT OL ---
+    public async Task<(bool Success, string Message)> RegisterAsync(UserRegisterDto request)
+    {
+        if (await _context.Users.AnyAsync(u => u.Username == request.Username))
+            return (false, "Bu kullanıcı adı zaten alınmış.");
 
-        // 2. Hash ve Salt oluşturma
-        CreatePasswordHash(password, out byte[] passwordHash, out byte[] passwordSalt);
+        /* * [SAVUNMA SANAYİİ NOTU]
+         * Projede şu an pratikliği ve Web endüstri standardı olması nedeniyle "BCrypt" kütüphanesi tercih edilmiştir.
+         * Ancak Savunma Sanayii veya kritik altyapı projelerinde (ASELSAN, HAVELSAN vb.):
+         * 1. Tedarik Zinciri Saldırılarını (Supply Chain Attacks) önlemek için dış kütüphane bağımlılığını sıfırlamak,
+         * 2. FIPS/NIST standartlarına (Native .NET Implementation) tam uyum sağlamak adına,
+         * İleride .NET'in yerleşik 'System.Security.Cryptography' (HMACSHA512/PBKDF2) yapısına geçiş yapılmalıdır.
+         */
+        
+        string passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
 
         var user = new User
         {
-            Username = username,
-            PasswordHash = passwordHash,
-            PasswordSalt = passwordSalt
+            Username = request.Username,
+            PasswordHash = passwordHash, 
+            Role = "User"
         };
 
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
-        return user;
+
+        return (true, "Kayıt başarılı.");
     }
 
-    // Kullanıcı Girişi
-    public async Task<User?> Login(string username, string password)
+    // --- GİRİŞ YAP ---
+    public async Task<(bool Success, string Message, string? Token)> LoginAsync(UserLoginDto request)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(x => x.Username == username);
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == request.Username);
         
-        // Kullanıcı yoksa veya şifre yanlışsa null dön
-        if (user == null || !VerifyPasswordHash(password, user.PasswordHash, user.PasswordSalt))
-            return null;
+        if (user == null)
+            return (false, "Kullanıcı bulunamadı.", null);
 
-        return user;
+        // Şifre Doğrulama
+        if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+            return (false, "Şifre hatalı.", null);
+
+        // Token Üret
+        string token = CreateToken(user);
+
+        return (true, "Giriş başarılı.", token);
     }
 
-    // Yardımcı Metod: Kullanıcı varlık kontrolü
-    public async Task<bool> UserExists(string username)
+    // --- HESAP SİLME (YENİ) ---
+    public async Task<(bool Success, string Message)> DeleteAccountAsync(int userId, string password)
     {
-        return await _context.Users.AnyAsync(u => u.Username == username);
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null) return (false, "Kullanıcı bulunamadı.");
+
+        // Güvenlik: Silmeden önce şifresini tekrar doğruluyoruz!
+        if (!BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
+            return (false, "Şifre yanlış. Hesabınızı silmek için şifrenizi doğru girmelisiniz.");
+
+        _context.Users.Remove(user);
+        await _context.SaveChangesAsync();
+        return (true, "Hesabınız başarıyla silindi.");
     }
 
-    // Yardımcı Metod: Şifreleme (Out parametreli kullanım profesyoneldir)
-    private void CreatePasswordHash(string password, out byte[] passwordHash, out byte[] passwordSalt)
+    // --- TOKEN OLUŞTURUCU ---
+    private string CreateToken(User user)
     {
-        using var hmac = new HMACSHA256();
-        passwordSalt = hmac.Key; // Üretilen rastgele anahtar
-        passwordHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(password)); // Şifrenin karma hali
-    }
+        var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new Claim(ClaimTypes.Name, user.Username),
+            new Claim(ClaimTypes.Role, user.Role)
+        };
 
-    // Yardımcı Metod: Doğrulama
-    private bool VerifyPasswordHash(string password, byte[] storedHash, byte[] storedSalt)
-    {
-        using var hmac = new HMACSHA256(storedSalt); // Veritabanındaki salt'ı kullan
-        var computedHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(password));
-        return computedHash.SequenceEqual(storedHash); // SequenceEqual çok daha performanslıdır
-    }
-    // Kullanıcı Silme
-    public async Task<bool> DeleteUser(string username, string password)
-{
-    var user = await _context.Users.FirstOrDefaultAsync(x => x.Username == username);
-    
-    // Kullanıcı yoksa veya şifre yanlışsa silme işlemini reddet
-    if (user == null || !VerifyPasswordHash(password, user.PasswordHash, user.PasswordSalt))
-        return false;
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
+            _configuration.GetSection("AppSettings:Token").Value!));
 
-    _context.Users.Remove(user);
-    await _context.SaveChangesAsync();
-    return true;
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha512Signature);
+
+        var tokenDescriptor = new SecurityTokenDescriptor
+        {
+            Subject = new ClaimsIdentity(claims),
+            Expires = DateTime.Now.AddDays(1),
+            SigningCredentials = creds
+        };
+
+        var tokenHandler = new JwtSecurityTokenHandler();
+        var token = tokenHandler.CreateToken(tokenDescriptor);
+
+        return tokenHandler.WriteToken(token);
+    }
 }
-    // JWT Token Oluşturma
-    public string CreateToken(User user)
-{
-    // Kullanıcı bilgilerini (Claim) token içine yerleştiriyoruz
-    var claims = new List<Claim>
-    {
-        new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-        new Claim(ClaimTypes.Name, user.Username),
-    };
-
-    // Anahtarı appsettings'ten oku
-    var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
-        _configuration.GetSection("AppSettings:Token").Value!));
-
-    // Anahtarı kullanarak imzalama algoritmasını seç
-    var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256Signature);
-
-    // Token özelliklerini belirle
-    var tokenDescriptor = new SecurityTokenDescriptor
-    {
-        Subject = new ClaimsIdentity(claims),
-        Expires = DateTime.Now.AddDays(1), // Token 1 gün geçerli olsun
-        SigningCredentials = creds
-    };
-
-    var tokenHandler = new JwtSecurityTokenHandler();
-    var token = tokenHandler.CreateToken(tokenDescriptor);
-
-    return tokenHandler.WriteToken(token);
-}
-    // Kullanıcı Profili Getirme
-    public async Task<object?> GetProfileAsync(int userId)
-{       
-    var user = await _context.Users.FindAsync(userId);
-    if (user == null) return null;
-
-    return new
-    {
-        message = $"Hoş geldin {user.Username} !!",
-        user.Username,
-    };
-}}

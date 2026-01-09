@@ -1,3 +1,9 @@
+
+using DevResourceAPI.Data;
+using DevResourceAPI.Models;
+using Microsoft.EntityFrameworkCore;
+using DevResourceAPI.DTOs;
+
 namespace DevResourceAPI.DTOs;
 public class CategoryDto
 {

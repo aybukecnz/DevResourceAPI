@@ -1,11 +1,10 @@
+using DevResourceAPI.DTOs;
 
-using DevResourceAPI.Models;
-namespace DevResourceAPI.Services // Kendi namespace ismini kontrol et
+namespace DevResourceAPI.Services;
+
+public interface IAuthService
 {
-    public interface IAuthService
-    {
-    Task<User>RegisterAsync(User user, string password);
-    Task<string?> LoginAsync(string username, string password);
-    Task<object?> GetProfileAsync(int userId);
-    }
+    Task<(bool Success, string Message)> RegisterAsync(UserRegisterDto request);
+    Task<(bool Success, string Message, string? Token)> LoginAsync(UserLoginDto request);
+    Task<(bool Success, string Message)> DeleteAccountAsync(int userId, string password);
 }
