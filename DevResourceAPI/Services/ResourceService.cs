@@ -51,35 +51,90 @@ public class ResourceService : IResourceService
     public async Task<Resource?> GetResourceByIdAsync(int id) => await _context.Resources.FindAsync(id);
 
     public async Task<Resource> CreateResourceAsync(Resource resource, int userId)
+{
+    // Kategoriyi veritabanından çek (Sadece var mı diye değil, kimin diye bakmak için)
+    var category = await _context.Categories.FirstOrDefaultAsync(c => c.Id == resource.CategoryId);
+
+    // Kategori hiç yoksa hata ver
+    if (category == null)
     {
-        // Kategori var mı ?
-    var categoryExists = await _context.Categories.AnyAsync(c => c.Id == resource.CategoryId);
-    if (!categoryExists)
+        throw new Exception("Böyle bir kategori bulunamadı.");
+    }
+
+    // GÜVENLİK DUVARI: Kategori senin mi? 
+    // Eğer kategorinin sahibi (category.UserId), şu anki işlem yapan kişi (userId) değilse DUR!
+    if (category.UserId != userId)
     {
-        throw new Exception("Geçersiz Kategori ID'si."); // Veya özel bir hata fırlat
+        throw new Exception("Hata: Başkasının kategorisine kaynak ekleyemezsiniz!");
     }
-        resource.UserId = userId;
-        _context.Resources.Add(resource);
-        await _context.SaveChangesAsync();
-        return resource;
-    }
+
+    resource.UserId = userId;
+    _context.Resources.Add(resource);
+    await _context.SaveChangesAsync();
+    return resource;
+}
 
     public async Task<(bool Success, string Message)> UpdateResourceAsync(int id, Resource resource, int currentUserId, string currentUserRole)
-    {
-        var existing = await _context.Resources.AsNoTracking().FirstOrDefaultAsync(r => r.Id == id);
-        if (existing == null) return (false, "Kaynak bulunamadı.");
-        
-        if (existing.UserId != currentUserId && currentUserRole != "Manager") 
-            return (false, "Yetkisiz işlem.");
+{
+    // Mevcut kaynağı çek (Tracking açık olsun, güncelleyeceğiz)
+    var existing = await _context.Resources.FindAsync(id);
+    if (existing == null) return (false, "Kaynak bulunamadı.");
+    
+    // Kaynağın sahibi sen misin?
+    if (existing.UserId != currentUserId && currentUserRole != "Manager") 
+        return (false, "Yetkisiz işlem.");
 
-        resource.Id = id; 
-        resource.UserId = existing.UserId; 
-        _context.Entry(resource).State = EntityState.Modified;
+    // --- YENİ EKLENEN GÜVENLİK KONTROLÜ ---
+    // Eğer kullanıcı kategoriyi değiştirmek istiyorsa, o yeni kategori onun mu?
+    if (resource.CategoryId != existing.CategoryId)
+    {
+        var targetCategory = await _context.Categories.FirstOrDefaultAsync(c => c.Id == resource.CategoryId);
+        if (targetCategory == null) return (false, "Hedef kategori bulunamadı.");
         
-        await _context.SaveChangesAsync();
-        return (true, "Güncellendi.");
+        // Manager değilse ve Kategori başkasınınsa DUR!
+        if (targetCategory.UserId != currentUserId && currentUserRole != "Manager")
+            return (false, "Başkasının kategorisine kaynak taşıyamazsınız!");
+    }
+    // Alanları güncelle
+    existing.Title = resource.Title;
+    existing.Url = resource.Url;
+    existing.CategoryId = resource.CategoryId; // Güvenli bir şekilde güncellendi
+    // existing.UserId = ... (Buna dokunma, sahiplik değişmez)
+    
+    await _context.SaveChangesAsync();
+    return (true, "Güncellendi.");
+}
+
+    public async Task<(bool Success, string Message)> PatchResourceAsync(int id, JsonPatchDocument<Resource> patchDoc, int currentUserId, string currentUserRole, ModelStateDictionary modelState)
+{
+    var resource = await _context.Resources.FindAsync(id);
+    if (resource == null) return (false, "Kaynak bulunamadı.");
+
+    // Kaynağın sahibi kontrolü
+    if (resource.UserId != currentUserId && currentUserRole != "Manager")
+        return (false, "Yetkisiz işlem.");
+
+    // Eski CategoryId'yi hafızada tut
+    var oldCategoryId = resource.CategoryId;
+
+    // Değişiklikleri uygula (Henüz DB'ye gitmedi, hafızada)
+    patchDoc.ApplyTo(resource, modelState);
+
+    //  YENİ EKLENEN KONTROL 
+    // Eğer Patch işlemi kategoriyi değiştirdiyse?
+    if (resource.CategoryId != oldCategoryId)
+    {
+         var targetCategory = await _context.Categories.FindAsync(resource.CategoryId);
+         if (targetCategory == null) return (false, "Hedef kategori geçersiz.");
+
+         // Manager değilse ve kategori başkasınınsa?
+         if (targetCategory.UserId != currentUserId && currentUserRole != "Manager")
+             return (false, "Başkasının kategorisine transfer yapamazsınız!");
     }
 
+    await _context.SaveChangesAsync();
+    return (true, "Kısmi güncelleme başarılı.");
+}
     public async Task<(bool Success, string Message)> DeleteResourceAsync(int id, int currentUserId, string currentUserRole)
     {
         var resource = await _context.Resources.FindAsync(id);
@@ -91,18 +146,5 @@ public class ResourceService : IResourceService
         _context.Resources.Remove(resource);
         await _context.SaveChangesAsync();
         return (true, "Silindi.");
-    }
-
-    public async Task<(bool Success, string Message)> PatchResourceAsync(int id, JsonPatchDocument<Resource> patchDoc, int currentUserId, string currentUserRole, ModelStateDictionary modelState)
-    {
-        var resource = await _context.Resources.FindAsync(id);
-        if (resource == null) return (false, "Kaynak bulunamadı.");
-
-        if (resource.UserId != currentUserId && currentUserRole != "Manager")
-            return (false, "Yetkisiz işlem.");
-
-        patchDoc.ApplyTo(resource, modelState);
-        await _context.SaveChangesAsync();
-        return (true, "Kısmi güncelleme başarılı.");
     }
 }

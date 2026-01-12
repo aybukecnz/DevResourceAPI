@@ -27,7 +27,7 @@ public class AuthService : IAuthService
         if (await _context.Users.AnyAsync(u => u.Username == request.Username))
             return (false, "Bu kullanıcı adı zaten alınmış.");
 
-        /* * [SAVUNMA SANAYİİ NOTU]
+        /* * [NOT]
          * Projede şu an pratikliği ve Web endüstri standardı olması nedeniyle "BCrypt" kütüphanesi tercih edilmiştir.
          * Ancak Savunma Sanayii veya kritik altyapı projelerinde (ASELSAN, HAVELSAN vb.):
          * 1. Tedarik Zinciri Saldırılarını (Supply Chain Attacks) önlemek için dış kütüphane bağımlılığını sıfırlamak,
@@ -65,10 +65,10 @@ public class AuthService : IAuthService
         // Token Üret
         string token = CreateToken(user);
 
-        return (true, "Giriş başarılı.", token);
+        return (true, $"Hoşgeldin {user.Username}, giriş başarılı!", token);
     }
 
-    // --- HESAP SİLME (YENİ) ---
+    // --- HESAP SİLME (Kullanıcının Kendisi) ---
     public async Task<(bool Success, string Message)> DeleteAccountAsync(int userId, string password)
     {
         var user = await _context.Users.FindAsync(userId);
@@ -81,6 +81,33 @@ public class AuthService : IAuthService
         _context.Users.Remove(user);
         await _context.SaveChangesAsync();
         return (true, "Hesabınız başarıyla silindi.");
+    }
+
+    // --- [YENİ EKLENDİ] ADMIN: TÜM KULLANICILARI LİSTELE ---
+    public async Task<IEnumerable<UserDto>> GetAllUsersAsync()
+    {
+        return await _context.Users
+            .Select(u => new UserDto 
+            {
+                Id = u.Id,
+                Username = u.Username,
+                Role = u.Role
+            })
+            .ToListAsync();
+    }
+
+    // --- [YENİ EKLENDİ] ADMIN: KULLANICIYI BANLA/SİL ---
+    public async Task<(bool Success, string Message)> DeleteUserByIdAsync(int id)
+    {
+        var user = await _context.Users.FindAsync(id);
+        if (user == null) return (false, "Kullanıcı bulunamadı.");
+
+        // Güvenlik: Manager kendini yanlışlıkla silemesin
+        if (user.Role == "Manager") return (false, "Yöneticiler silinemez.");
+
+        _context.Users.Remove(user);
+        await _context.SaveChangesAsync();
+        return (true, "Kullanıcı sistemden atıldı.");
     }
 
     // --- TOKEN OLUŞTURUCU ---

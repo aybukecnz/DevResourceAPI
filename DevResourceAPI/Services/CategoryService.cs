@@ -32,6 +32,21 @@ namespace DevResourceAPI.Services
             return category;
         }
 
+    public async Task<(bool Success, string Message)> UpdateCategoryAsync(int id, Category category, int currentUserId, string currentUserRole)
+{
+    var existing = await _context.Categories.FindAsync(id);
+    if (existing == null) return (false, "Kategori bulunamadı.");
+
+    // Yetki Kontrolü: Sahibi mi? Veya Manager mı?
+    if (existing.UserId != currentUserId && currentUserRole != "Manager")
+        return (false, "Bu işlemi yapmaya yetkiniz yok.");
+
+    // Sadece ismini güncelle, UserId veya Id'ye dokunma!
+    existing.Name = category.Name;
+    
+    await _context.SaveChangesAsync();
+    return (true, "Kategori güncellendi.");
+}
         public async Task<(bool Success, string Message)> DeleteCategoryAsync(int id, int currentUserId, string currentUserRole)
         {
             var category = await _context.Categories

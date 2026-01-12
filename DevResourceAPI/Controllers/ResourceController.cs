@@ -29,24 +29,67 @@ public class ResourceController : ControllerBase
 
     [HttpPost]
     [Authorize]
-    public async Task<ActionResult<Resource>> CreateResource(Resource resource)
+    // Dönüş tipini ActionResult<Resource> yerine ActionResult<ResourceDto> yap (Opsiyonel ama şık durur)
+    public async Task<ActionResult<ResourceDto>> CreateResource([FromBody] CreateResourceDto request)
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var result = await _resourceService.CreateResourceAsync(resource, userId);
-        return Ok(result);
+        var userName = User.Identity?.Name ?? "Kullanıcı"; // Token'dan ismini alıyoruz
+
+        // DTO -> Entity Çevrimi
+        var resource = new Resource
+        {
+            Title = request.Title,
+            Url = request.Url,
+            CategoryId = request.CategoryId,
+            UserId = userId
+        };
+
+        try 
+        {
+            // Servis veritabanına kaydeder ve Entity döner
+            var createdResource = await _resourceService.CreateResourceAsync(resource, userId);
+
+            // --- HATAYI ÇÖZEN KISIM ---
+            // Entity'i (createdResource) direkt döndürme! Sonsuz döngü yapar.
+            // Onun yerine temiz bir DTO oluşturup onu döndür.
+            
+            var returnDto = new ResourceDto
+            {
+                Id = createdResource.Id,
+                Title = createdResource.Title,
+                Url = createdResource.Url,
+                CategoryName = "Yeni Eklendi", // Kayıt anında tekrar DB'ye sormamak için statik yazabiliriz
+                OwnerName = userName // Token'dan aldığımız isim
+            };
+
+            return Ok(returnDto);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPut("{id}")]
     [Authorize]
-    public async Task<IActionResult> UpdateResource(int id, Resource resource)
+    public async Task<IActionResult> UpdateResource(int id, [FromBody] UpdateResourceDto request)
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var userRole = User.FindFirst(ClaimTypes.Role)!.Value;
+        var userRole = User.FindFirst(ClaimTypes.Role)!.Value?? "User";
+        // Manuel Mapping (DTO -> Entity)
+        var resource = new Resource
+        {
+            Id = id,
+            Title = request.Title,
+            Url = request.Url,
+            CategoryId = request.CategoryId,
+           // UserId'yi serviste 'existing' kayıttan koruyoruz, buraya yazmaya gerek yok
+        };
 
         var (success, message) = await _resourceService.UpdateResourceAsync(id, resource, userId, userRole);
         
         if (!success) return StatusCode(403, new { message });
-        return NoContent();
+        return Ok(new { message });
     }
 
     [HttpDelete("{id}")]

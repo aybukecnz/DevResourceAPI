@@ -9,5 +9,6 @@ namespace DevResourceAPI.Services
         Task<Category?> GetCategoryByIdAsync(int id);
         Task<Category> CreateCategoryAsync(Category category, int userId);
         Task<(bool Success, string Message)> DeleteCategoryAsync(int id, int currentUserId, string currentUserRole);
+        Task<(bool Success, string Message)> UpdateCategoryAsync(int id, Category category, int currentUserId, string currentUserRole);
     }
 }
