@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
-using DevResourceAPI.Services;
 using DevResourceAPI.Models;
+using DevResourceAPI.Services;
 using DevResourceAPI.DTOs;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.JsonPatch;
 using System.Security.Claims;
+using Microsoft.AspNetCore.JsonPatch;
 
 namespace DevResourceAPI.Controllers;
 
@@ -19,47 +19,74 @@ public class ResourceController : ControllerBase
         _resourceService = resourceService;
     }
 
+    // GET: api/Resource
     [HttpGet]
-    [AllowAnonymous]
-    public async Task<IActionResult> GetResources([FromQuery] string? searchTerm, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+    public async Task<IActionResult> GetAllResources(
+        [FromQuery] string? search,
+        [FromQuery] int? categoryId,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10)
     {
-        var result = await _resourceService.GetAllResourcesAsync(searchTerm, pageNumber, pageSize);
-        return Ok(result);
+        // İşte hatayı çözen kısım burası: Parametreleri eksiksiz gönderiyoruz
+        var result = await _resourceService.GetAllResourcesAsync(search, categoryId, pageNumber, pageSize);
+
+        return Ok(new 
+        { 
+            TotalRecords = result.TotalRecords,
+            PageNumber = pageNumber,
+            PageSize = pageSize,
+            TotalPages = (int)Math.Ceiling(result.TotalRecords / (double)pageSize),
+            Data = result.Data
+        });
     }
 
+    // GET: api/Resource/grouped (YENİ ÖZELLİK)
+    [HttpGet("grouped")]
+    public async Task<ActionResult<IEnumerable<UserGroupedResourceDto>>> GetGroupedResources()
+    {
+        var groupedResources = await _resourceService.GetAllResourcesGroupedAsync();
+        return Ok(groupedResources);
+    }
+
+    // GET: api/Resource/5
+    [HttpGet("{id}")]
+    public async Task<ActionResult<Resource>> GetResourceById(int id)
+    {
+        var resource = await _resourceService.GetResourceByIdAsync(id);
+        if (resource == null) return NotFound(new { message = "Kaynak bulunamadı." });
+        return Ok(resource);
+    }
+
+    // POST: api/Resource
     [HttpPost]
     [Authorize]
-    // Dönüş tipini ActionResult<Resource> yerine ActionResult<ResourceDto> yap (Opsiyonel ama şık durur)
     public async Task<ActionResult<ResourceDto>> CreateResource([FromBody] CreateResourceDto request)
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var userName = User.Identity?.Name ?? "Kullanıcı"; // Token'dan ismini alıyoruz
+        var userName = User.Identity?.Name ?? "Kullanıcı";
 
-        // DTO -> Entity Çevrimi
         var resource = new Resource
         {
             Title = request.Title,
             Url = request.Url,
+            Description = request.Description, // Açıklamayı unutmuyoruz
             CategoryId = request.CategoryId,
             UserId = userId
         };
 
         try 
         {
-            // Servis veritabanına kaydeder ve Entity döner
             var createdResource = await _resourceService.CreateResourceAsync(resource, userId);
 
-            // --- HATAYI ÇÖZEN KISIM ---
-            // Entity'i (createdResource) direkt döndürme! Sonsuz döngü yapar.
-            // Onun yerine temiz bir DTO oluşturup onu döndür.
-            
             var returnDto = new ResourceDto
             {
                 Id = createdResource.Id,
                 Title = createdResource.Title,
+                Description = createdResource.Description ?? "",
                 Url = createdResource.Url,
-                CategoryName = "Yeni Eklendi", // Kayıt anında tekrar DB'ye sormamak için statik yazabiliriz
-                OwnerName = userName // Token'dan aldığımız isim
+                CategoryId = createdResource.CategoryId,
+                CategoryName = "Yeni Eklendi",
+                OwnerName = userName
             };
 
             return Ok(returnDto);
@@ -70,53 +97,46 @@ public class ResourceController : ControllerBase
         }
     }
 
+    // PUT: api/Resource/5
     [HttpPut("{id}")]
     [Authorize]
-    public async Task<IActionResult> UpdateResource(int id, [FromBody] UpdateResourceDto request)
+    public async Task<IActionResult> UpdateResource(int id, [FromBody] Resource resource)
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var userRole = User.FindFirst(ClaimTypes.Role)!.Value?? "User";
-        // Manuel Mapping (DTO -> Entity)
-        var resource = new Resource
-        {
-            Id = id,
-            Title = request.Title,
-            Url = request.Url,
-            CategoryId = request.CategoryId,
-           // UserId'yi serviste 'existing' kayıttan koruyoruz, buraya yazmaya gerek yok
-        };
+        var userRole = User.FindFirst(ClaimTypes.Role)?.Value ?? "User";
 
-        var (success, message) = await _resourceService.UpdateResourceAsync(id, resource, userId, userRole);
-        
-        if (!success) return StatusCode(403, new { message });
-        return Ok(new { message });
+        var result = await _resourceService.UpdateResourceAsync(id, resource, userId, userRole);
+
+        if (!result.Success) return BadRequest(new { message = result.Message });
+        return Ok(new { message = result.Message });
     }
 
+    // PATCH: api/Resource/5
+    [HttpPatch("{id}")]
+    [Authorize]
+    public async Task<IActionResult> PatchResource(int id, [FromBody] JsonPatchDocument<Resource> patchDoc)
+    {
+        if (patchDoc == null) return BadRequest();
+
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var userRole = User.FindFirst(ClaimTypes.Role)?.Value ?? "User";
+        var result = await _resourceService.PatchResourceAsync(id, patchDoc, userId, userRole);
+
+        if (!result.Success) return BadRequest(new { message = result.Message });
+        return Ok(new { message = result.Message });
+    }
+
+    // DELETE: api/Resource/5
     [HttpDelete("{id}")]
     [Authorize]
     public async Task<IActionResult> DeleteResource(int id)
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var userRole = User.FindFirst(ClaimTypes.Role)!.Value;
+        var userRole = User.FindFirst(ClaimTypes.Role)?.Value ?? "User";
 
-        var (success, message) = await _resourceService.DeleteResourceAsync(id, userId, userRole);
+        var result = await _resourceService.DeleteResourceAsync(id, userId, userRole);
 
-        if (!success) return StatusCode(403, new { message });
-        return Ok(new { message });
-    }
-
-    [HttpPatch("{id}")]
-    [Authorize]
-    public async Task<IActionResult> PatchResource(int id, [FromBody] JsonPatchDocument<Resource> patchDoc)
-    {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var userRole = User.FindFirst(ClaimTypes.Role)!.Value;
-
-        var (success, message) = await _resourceService.PatchResourceAsync(id, patchDoc, userId, userRole, ModelState);
-
-        if (!success) return StatusCode(403, new { message });
-        if (!ModelState.IsValid) return BadRequest(ModelState);
-
-        return NoContent();
+        if (!result.Success) return BadRequest(new { message = result.Message });
+        return Ok(new { message = result.Message });
     }
 }

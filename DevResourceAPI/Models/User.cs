@@ -14,7 +14,18 @@ namespace DevResourceAPI.Models
 //       public byte[] PasswordSalt { get; set; } = Array.Empty<byte>();
 // ESKİDEN: public byte[] PasswordHash { get; set; }
 // YENİSİ: String olmalı çünkü BCrypt string döner!
-        public virtual ICollection<Category>? Categories { get; set; }
-        public virtual ICollection<Resource>? Resources { get; set; }
+    public virtual ICollection<Category>? Categories { get; set; }
+    public virtual ICollection<Resource>? Resources { get; set; }
+
+    // Nullable (?) değil, direkt boş liste olarak başlatıyoruz.
+    // Böylece "user.LikedResources" asla NULL gelmez, en kötü ihtimalle BOŞ gelir.
+    // Kullanıcının beğendiği kaynaklar
+    public ICollection<ResourceLike> LikedResources { get; set; } = new List<ResourceLike>();
+
+    // Kullanıcının takip ettikleri
+    public ICollection<UserFollow> Following { get; set; } = new List<UserFollow>(); 
+    
+    // Kullanıcıyı takip edenler
+    public ICollection<UserFollow> Followers { get; set; } = new List<UserFollow>();
     }
 }

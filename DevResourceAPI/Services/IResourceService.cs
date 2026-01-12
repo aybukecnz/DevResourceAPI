@@ -1,18 +1,20 @@
 using DevResourceAPI.Models;
 using DevResourceAPI.DTOs;
-using Microsoft.AspNetCore.JsonPatch; // <-- BU SATIR ÇOK ÖNEMLİ
-using Microsoft.AspNetCore.Mvc.ModelBinding; // ModelState için
+using Microsoft.AspNetCore.JsonPatch;
 
 namespace DevResourceAPI.Services;
 
 public interface IResourceService
 {
-    Task<object> GetAllResourcesAsync(string? searchTerm, int pageNumber, int pageSize);
+    Task<(IEnumerable<ResourceDto> Data, int TotalRecords)> GetAllResourcesAsync(string? search, int? categoryId, int pageNumber, int pageSize);
+    Task<IEnumerable<UserGroupedResourceDto>> GetAllResourcesGroupedAsync();
+    
     Task<Resource?> GetResourceByIdAsync(int id);
     Task<Resource> CreateResourceAsync(Resource resource, int userId);
     Task<(bool Success, string Message)> UpdateResourceAsync(int id, Resource resource, int currentUserId, string currentUserRole);
-    Task<(bool Success, string Message)> DeleteResourceAsync(int id, int currentUserId, string currentUserRole);
     
-    // Patch Metodu
-    Task<(bool Success, string Message)> PatchResourceAsync(int id, JsonPatchDocument<Resource> patchDoc, int currentUserId, string currentUserRole, ModelStateDictionary modelState);
+    // DÜZELTME: Sondaki 'ModelStateDictionary modelState' kısmını SİLDİK 👇
+    Task<(bool Success, string Message)> PatchResourceAsync(int id, JsonPatchDocument<Resource> patchDoc, int currentUserId, string currentUserRole);
+    
+    Task<(bool Success, string Message)> DeleteResourceAsync(int id, int currentUserId, string currentUserRole);
 }
