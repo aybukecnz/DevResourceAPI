@@ -1,10 +1,11 @@
 using DevResourceAPI.Models;
+using DevResourceAPI.DTOs;
 
 namespace DevResourceAPI.Services
 {
     public interface ICategoryService
     {
-        Task<IEnumerable<object>> GetAllCategoriesAsync();
+        Task<IEnumerable<CategoryDto>> GetAllCategoriesAsync();
         Task<Category?> GetCategoryByIdAsync(int id);
         Task<Category> CreateCategoryAsync(Category category, int userId);
         Task<(bool Success, string Message)> DeleteCategoryAsync(int id, int currentUserId, string currentUserRole);

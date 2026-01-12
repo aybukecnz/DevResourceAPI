@@ -12,7 +12,7 @@ namespace DevResourceAPI.Services
         {
             _context = context;
         }
-        public async Task<IEnumerable<object>> GetAllCategoriesAsync()
+        public async Task<IEnumerable<CategoryDto>> GetAllCategoriesAsync()
         {
             return await _context.Categories
                 .Include(c=> c.User) 

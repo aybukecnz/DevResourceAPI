@@ -11,8 +11,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DevResourceAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260109080952_AddRoleToUser")]
-    partial class AddRoleToUser
+    [Migration("20260112053445_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -41,39 +41,9 @@ namespace DevResourceAPI.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Categories");
+                    b.HasIndex("UserId");
 
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            Name = "Backend Geliştirme",
-                            UserId = 0
-                        },
-                        new
-                        {
-                            Id = 2,
-                            Name = "Frontend Geliştirme",
-                            UserId = 0
-                        },
-                        new
-                        {
-                            Id = 3,
-                            Name = "Siber Güvenlik",
-                            UserId = 0
-                        },
-                        new
-                        {
-                            Id = 4,
-                            Name = "Veritabanı Sistemleri",
-                            UserId = 0
-                        },
-                        new
-                        {
-                            Id = 5,
-                            Name = "Yapay Zeka ve Veri Bilimi",
-                            UserId = 0
-                        });
+                    b.ToTable("Categories");
                 });
 
             modelBuilder.Entity("DevResourceAPI.Models.Resource", b =>
@@ -88,7 +58,6 @@ namespace DevResourceAPI.Migrations
                         .HasColumnType("integer");
 
                     b.Property<string>("Description")
-                        .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
@@ -101,6 +70,9 @@ namespace DevResourceAPI.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CategoryId");
@@ -108,49 +80,9 @@ namespace DevResourceAPI.Migrations
                     b.HasIndex("Url")
                         .IsUnique();
 
-                    b.ToTable("Resources");
+                    b.HasIndex("UserId");
 
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            CategoryId = 1,
-                            Description = "Kapsamlı .NET ve C# rehberi.",
-                            Title = "Microsoft .NET Documentation",
-                            Url = "https://learn.microsoft.com/dotnet/"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            CategoryId = 2,
-                            Description = "Modern Frontend geliştirme kılavuzu.",
-                            Title = "React Official Docs",
-                            Url = "https://react.dev/"
-                        },
-                        new
-                        {
-                            Id = 3,
-                            CategoryId = 3,
-                            Description = "Web uygulama güvenliği için en kritik 10 risk listesi.",
-                            Title = "OWASP Top Ten",
-                            Url = "https://owasp.org/www-project-top-ten/"
-                        },
-                        new
-                        {
-                            Id = 4,
-                            CategoryId = 4,
-                            Description = "İleri seviye SQL ve DB yönetimi dersleri.",
-                            Title = "PostgreSQL Tutorial",
-                            Url = "https://www.postgresqltutorial.com/"
-                        },
-                        new
-                        {
-                            Id = 5,
-                            CategoryId = 5,
-                            Description = "Yapay zeka modelleri için açık kaynaklı kütüphane.",
-                            Title = "TensorFlow Hub",
-                            Url = "https://www.tensorflow.org/"
-                        });
+                    b.ToTable("Resources");
                 });
 
             modelBuilder.Entity("DevResourceAPI.Models.User", b =>
@@ -161,13 +93,9 @@ namespace DevResourceAPI.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<byte[]>("PasswordHash")
+                    b.Property<string>("PasswordHash")
                         .IsRequired()
-                        .HasColumnType("bytea");
-
-                    b.Property<byte[]>("PasswordSalt")
-                        .IsRequired()
-                        .HasColumnType("bytea");
+                        .HasColumnType("text");
 
                     b.Property<string>("Role")
                         .IsRequired()
@@ -182,6 +110,17 @@ namespace DevResourceAPI.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("DevResourceAPI.Models.Category", b =>
+                {
+                    b.HasOne("DevResourceAPI.Models.User", "User")
+                        .WithMany("Categories")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("DevResourceAPI.Models.Resource", b =>
                 {
                     b.HasOne("DevResourceAPI.Models.Category", "Category")
@@ -190,11 +129,26 @@ namespace DevResourceAPI.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("DevResourceAPI.Models.User", "User")
+                        .WithMany("Resources")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Category");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("DevResourceAPI.Models.Category", b =>
                 {
+                    b.Navigation("Resources");
+                });
+
+            modelBuilder.Entity("DevResourceAPI.Models.User", b =>
+                {
+                    b.Navigation("Categories");
+
                     b.Navigation("Resources");
                 });
 #pragma warning restore 612, 618

@@ -22,12 +22,13 @@ public class ResourceService : IResourceService
         var query = _context.Resources.Include(r => r.Category).AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(searchTerm))
-        {
-            searchTerm = searchTerm.ToLower();
-            query = query.Where(r => 
-                (r.Title != null && r.Title.ToLower().Contains(searchTerm)) || 
-                (r.Category != null && r.Category.Name != null && r.Category.Name.ToLower().Contains(searchTerm)));
-        }
+    {
+    // PostgreSQL için optimize edilmiş arama (Büyük/Küçük harf hassasiyeti olmadan)
+    query = query.Where(r => 
+        EF.Functions.ILike(r.Title, $"%{searchTerm}%") || 
+        (r.Category != null && EF.Functions.ILike(r.Category.Name, $"%{searchTerm}%"))
+    );
+    }
 
         var totalRecords = await query.CountAsync();
         var result = await query
@@ -39,7 +40,8 @@ public class ResourceService : IResourceService
                 Id = r.Id,
                 Title = r.Title,
                 Url = r.Url,
-                CategoryName = r.Category != null ? r.Category.Name : "Tanımsız"
+                CategoryName = r.Category != null ? r.Category.Name : "Tanımsız",
+                OwnerName = r.User != null ? r.User.Username : "Silinmiş Kullanıcı"
             })
             .ToListAsync();
 
@@ -50,6 +52,12 @@ public class ResourceService : IResourceService
 
     public async Task<Resource> CreateResourceAsync(Resource resource, int userId)
     {
+        // Kategori var mı ?
+    var categoryExists = await _context.Categories.AnyAsync(c => c.Id == resource.CategoryId);
+    if (!categoryExists)
+    {
+        throw new Exception("Geçersiz Kategori ID'si."); // Veya özel bir hata fırlat
+    }
         resource.UserId = userId;
         _context.Resources.Add(resource);
         await _context.SaveChangesAsync();

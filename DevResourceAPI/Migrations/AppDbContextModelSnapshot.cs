@@ -41,38 +41,6 @@ namespace DevResourceAPI.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Categories");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            Name = "Backend Geliştirme",
-                            UserId = 0
-                        },
-                        new
-                        {
-                            Id = 2,
-                            Name = "Frontend Geliştirme",
-                            UserId = 0
-                        },
-                        new
-                        {
-                            Id = 3,
-                            Name = "Siber Güvenlik",
-                            UserId = 0
-                        },
-                        new
-                        {
-                            Id = 4,
-                            Name = "Veritabanı Sistemleri",
-                            UserId = 0
-                        },
-                        new
-                        {
-                            Id = 5,
-                            Name = "Yapay Zeka ve Veri Bilimi",
-                            UserId = 0
-                        });
                 });
 
             modelBuilder.Entity("DevResourceAPI.Models.Resource", b =>
@@ -112,53 +80,6 @@ namespace DevResourceAPI.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Resources");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            CategoryId = 1,
-                            Description = "Kapsamlı .NET ve C# rehberi.",
-                            Title = "Microsoft .NET Documentation",
-                            Url = "https://learn.microsoft.com/dotnet/",
-                            UserId = 0
-                        },
-                        new
-                        {
-                            Id = 2,
-                            CategoryId = 2,
-                            Description = "Modern Frontend geliştirme kılavuzu.",
-                            Title = "React Official Docs",
-                            Url = "https://react.dev/",
-                            UserId = 0
-                        },
-                        new
-                        {
-                            Id = 3,
-                            CategoryId = 3,
-                            Description = "Web uygulama güvenliği için en kritik 10 risk listesi.",
-                            Title = "OWASP Top Ten",
-                            Url = "https://owasp.org/www-project-top-ten/",
-                            UserId = 0
-                        },
-                        new
-                        {
-                            Id = 4,
-                            CategoryId = 4,
-                            Description = "İleri seviye SQL ve DB yönetimi dersleri.",
-                            Title = "PostgreSQL Tutorial",
-                            Url = "https://www.postgresqltutorial.com/",
-                            UserId = 0
-                        },
-                        new
-                        {
-                            Id = 5,
-                            CategoryId = 5,
-                            Description = "Yapay zeka modelleri için açık kaynaklı kütüphane.",
-                            Title = "TensorFlow Hub",
-                            Url = "https://www.tensorflow.org/",
-                            UserId = 0
-                        });
                 });
 
             modelBuilder.Entity("DevResourceAPI.Models.User", b =>
