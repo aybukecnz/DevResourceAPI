@@ -4,6 +4,7 @@ using DevResourceAPI.Models;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using DevResourceAPI.DTOs;
+using DevResourceAPI.Models.Common;
 
 namespace DevResourceAPI.Controllers;
 
@@ -20,9 +21,18 @@ public class CategoryController : ControllerBase
 
     [HttpGet]
     [AllowAnonymous]
-    public async Task<IActionResult> GetCategories()
+    public async Task<IActionResult> GetAllCategories(
+        [FromQuery] string? search,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10)
     {
-        return Ok(await _categoryService.GetAllCategoriesAsync());
+        var result = await _categoryService.GetAllCategoriesAsync(search, pageNumber, pageSize);
+
+        return Ok(new 
+        { 
+            TotalRecords = result.TotalRecords,
+            Data = result.Data 
+        });
     }
 
     [HttpPost]

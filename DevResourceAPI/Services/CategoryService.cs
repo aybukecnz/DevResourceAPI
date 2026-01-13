@@ -2,6 +2,7 @@ using DevResourceAPI.Data;
 using DevResourceAPI.Models;
 using Microsoft.EntityFrameworkCore;
 using DevResourceAPI.DTOs;
+using DevResourceAPI.Models.Common;
 
 namespace DevResourceAPI.Services
 {
@@ -12,18 +13,45 @@ namespace DevResourceAPI.Services
         {
             _context = context;
         }
-        public async Task<IEnumerable<CategoryDto>> GetAllCategoriesAsync()
+        public async Task<(IEnumerable<CategoryDto> Data, int TotalRecords)> GetAllCategoriesAsync(
+        string? search, 
+        int pageNumber, 
+        int pageSize)
+    {
+        var query = _context.Categories
+            .Include(c => c.User) // Kategoriyi kimin oluşturduğunu görmek istersen
+            .AsQueryable();
+
+        // 1. ARAMA (Kategori ismine göre)
+        if (!string.IsNullOrWhiteSpace(search))
         {
-            return await _context.Categories
-                .Include(c=> c.User) 
-                .Select(c => new CategoryDto
-                {
-                    Id = c.Id,
-                    Name = c.Name,
-                    OwnerName = c.User !=null ? c.User.Username : "Anonim"
-                })
-                .ToListAsync();
+            search = search.ToLower();
+            query = query.Where(c => c.Name != null && c.Name.ToLower().Contains(search));
         }
+
+        // 2. SAYFALAMA MANTIĞI
+        var totalRecords = await query.CountAsync();
+        query = query.OrderByDescending(c => c.UpdatedAt ?? c.CreatedAt); // Yeniden eskiye
+
+        // pageSize > 0 ise sayfalama yap (Resource ile aynı mantık)
+        if (pageSize > 0)
+        {
+            query = query.Skip((pageNumber - 1) * pageSize).Take(pageSize);
+        }
+
+        // 3. DTO ÇEVİRİMİ
+        var result = await query
+            .Select(c => new CategoryDto
+            {
+                Id = c.Id,
+                Name = c.Name,
+                // Eğer CategoryDto'da UserId veya OwnerName yoksa bu satırları silebilirsin:
+                // OwnerName = c.User != null ? c.User.Username : "Sistem"
+            })
+            .ToListAsync();
+
+        return (result, totalRecords);
+    }
     public async Task<Category> CreateCategoryAsync(Category category, int userId)
         {
             category.UserId = userId;
@@ -71,6 +99,22 @@ namespace DevResourceAPI.Services
         {
             return await _context.Categories.FindAsync(id);
         }
+        public async Task<IEnumerable<Category>> GetAllAsync(PaginationFilter filter)
+{
+    // Eğer tümünü görmek istiyorsa (Örn: PageSize -1 geldiyse)
+    // Veya basit bir kontrolle
+    var query = _context.Categories.AsQueryable(); // IQueryable ile başlıyoruz (Henüz DB'ye gitmedik)
+
+    // Sayfalama Formülü
+    // Skip: Kaç tane kayıt pas geçilecek?
+    // Take: Kaç tane kayıt alınacak?
+    var pagedData = await query
+        .Skip((filter.PageNumber - 1) * filter.PageSize)
+        .Take(filter.PageSize)
+        .ToListAsync(); // Şimdi DB'ye gittik
+
+    return pagedData;
+}
     }
 }    
     

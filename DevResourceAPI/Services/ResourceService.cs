@@ -16,9 +16,13 @@ public class ResourceService : IResourceService
         _context = context;
     }
 
-    // --- 1. LİSTELEME ---
     public async Task<(IEnumerable<ResourceDto> Data, int TotalRecords)> GetAllResourcesAsync(
-        string? search, int? categoryId, int? userId, int pageNumber, int pageSize, int? currentUserId)
+        string? search, 
+        int? categoryId, 
+        int? userId, 
+        int pageNumber, 
+        int pageSize, 
+        int? currentUserId)
     {
         var query = _context.Resources
             .Include(r => r.Category)
@@ -26,7 +30,7 @@ public class ResourceService : IResourceService
             .Include(r => r.Likes)
             .AsQueryable();
 
-        // ARAMA
+        // --- ARAMA & FİLTRELEME ---
         if (!string.IsNullOrWhiteSpace(search))
         {
             search = search.ToLower();
@@ -34,28 +38,23 @@ public class ResourceService : IResourceService
                                      (r.Description != null && r.Description.ToLower().Contains(search)));
         }
 
-        // FİLTRELEME
         if (categoryId.HasValue)
-        {
             query = query.Where(r => r.CategoryId == categoryId.Value);
-        }
 
-        // Toplam Kayıt Sayısı
+        if (userId.HasValue)
+            query = query.Where(r => r.UserId == userId.Value);
+
+        // --- SAYFALAMA MANTIĞI (STANDART) ---
         var totalRecords = await query.CountAsync();
+        query = query.OrderByDescending(r => r.UpdatedAt ?? r.CreatedAt); // Yeniden eskiye
 
-        // SIRALAMA (Her durumda geçerli)
-        query = query.OrderByDescending(r => r.Id);
-
-        // --- DEĞİŞİKLİK BURADA: SAYFALAMA MANTIĞI ---
-        // Eğer pageSize -1 DEĞİLSE sayfalama yap. -1 ise bu bloğu atla (Hepsini çek).
-        if (pageSize != -1)
+        // pageSize > 0 ise sayfalama yap. (0, -1 veya negatif gelirse HEPSİNİ getir)
+        if (pageSize > 0)
         {
-            query = query
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize);
+            query = query.Skip((pageNumber - 1) * pageSize).Take(pageSize);
         }
 
-        // PROJECTION (Veriyi DTO'ya çevirme)
+        // --- DTO ÇEVİRİMİ ---
         var result = await query
             .Select(r => new ResourceDto 
             {
@@ -72,38 +71,6 @@ public class ResourceService : IResourceService
             .ToListAsync();
 
         return (result, totalRecords);
-    }
-
-    // Gruplama Metodu
-    public async Task<IEnumerable<UserGroupedResourceDto>> GetAllResourcesGroupedAsync()
-    {
-        var resources = await _context.Resources
-            .Include(r => r.Category)
-            .Include(r => r.User)
-            .OrderByDescending(r => r.Id)
-            .ToListAsync();
-
-        // Null User kontrolü yaparak gruplama
-        var groupedData = resources
-            .Where(r => r.User != null) // User'ı olmayanları (silinmişleri) eledik
-            .GroupBy(r => r.User!.Username) // (!) null olmadığını garanti ettik
-            .Select(group => new UserGroupedResourceDto
-            {
-                OwnerName = group.Key,
-                Resources = group.Select(r => new ResourceDto
-                {
-                    Id = r.Id,
-                    Title = r.Title ?? "Başlıksız",
-                    Description = r.Description ?? "",
-                    Url = r.Url ?? "",
-                    CategoryId = r.CategoryId,
-                    CategoryName = r.Category?.Name ?? "Kategorisiz",
-                    OwnerName = group.Key
-                }).ToList()
-            })
-            .ToList();
-
-        return groupedData;
     }
 
     public async Task<Resource?> GetResourceByIdAsync(int id) => await _context.Resources.FindAsync(id);
