@@ -64,7 +64,7 @@ public class ResourceService : IResourceService
                 Url = r.Url ?? "",
                 CategoryId = r.CategoryId,
                 CategoryName = r.Category != null ? r.Category.Name : "Kategorisiz",
-                OwnerName = r.User != null ? r.User.Username : "Bilinmiyor",
+                OwnerName = r.User != null ? r.User.UserName! : "Bilinmiyor",
                 LikeCount = r.Likes.Count,
                 IsLikedByMe = currentUserId.HasValue && r.Likes.Any(l => l.UserId == currentUserId.Value)
             })

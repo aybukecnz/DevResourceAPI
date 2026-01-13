@@ -1,6 +1,7 @@
 namespace DevResourceAPI.DTOs;
+using DevResourceAPI.Models.Common;
 
-public class UserDto
+public class UserDto : BaseEntity
 {
     public int Id { get; set; } = 0;           
     public string Username { get; set; }= string.Empty;

@@ -1,140 +1,112 @@
+using DevResourceAPI.DTOs;
+using DevResourceAPI.Models;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using BCrypt.Net; 
-using DevResourceAPI.Data;
-using DevResourceAPI.DTOs;
-using DevResourceAPI.Models;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
 
 namespace DevResourceAPI.Services;
 
 public class AuthService : IAuthService
 {
-    private readonly AppDbContext _context;
+    private readonly UserManager<User> _userManager;
     private readonly IConfiguration _configuration;
 
-    public AuthService(AppDbContext context, IConfiguration configuration)
+    public AuthService(UserManager<User> userManager, IConfiguration configuration)
     {
-        _context = context;
+        _userManager = userManager;
         _configuration = configuration;
     }
 
-    // --- KAYIT OL ---
     public async Task<(bool Success, string Message)> RegisterAsync(UserRegisterDto request)
     {
-        if (await _context.Users.AnyAsync(u => u.Username == request.Username))
+        var existingUser = await _userManager.FindByNameAsync(request.Username);
+        if (existingUser != null)
             return (false, "Bu kullanıcı adı zaten alınmış.");
 
-        /* * [NOT]
-         * Projede şu an pratikliği ve Web endüstri standardı olması nedeniyle "BCrypt" kütüphanesi tercih edilmiştir.
-         * Ancak Savunma Sanayii veya kritik altyapı projelerinde (ASELSAN, HAVELSAN vb.):
-         * 1. Tedarik Zinciri Saldırılarını (Supply Chain Attacks) önlemek için dış kütüphane bağımlılığını sıfırlamak,
-         * 2. FIPS/NIST standartlarına (Native .NET Implementation) tam uyum sağlamak adına,
-         * İleride .NET'in yerleşik 'System.Security.Cryptography' (HMACSHA512/PBKDF2) yapısına geçiş yapılmalıdır.
-         */
-        
-        string passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
-
-        var user = new User
+        var newUser = new User
         {
-            Username = request.Username,
-            PasswordHash = passwordHash, 
-            Role = "User"
+            UserName = request.Username, // Büyük 'N' ile (Düzeltme)
+            CreatedAt = DateTime.UtcNow
         };
 
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync();
+        var result = await _userManager.CreateAsync(newUser, request.Password);
+
+        if (!result.Succeeded)
+            return (false, "Kayıt başarısız: " + string.Join(", ", result.Errors.Select(e => e.Description)));
 
         return (true, "Kayıt başarılı.");
     }
 
-    // --- GİRİŞ YAP ---
-    public async Task<(bool Success, string Message, string? Token)> LoginAsync(UserLoginDto request)
+    public async Task<(bool Success, string Token)> LoginAsync(UserLoginDto request)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == request.Username);
-        
-        if (user == null)
-            return (false, "Kullanıcı bulunamadı.", null);
-
-        // Şifre Doğrulama
-        if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
-            return (false, "Şifre hatalı.", null);
-
-        // Token Üret
-        string token = CreateToken(user);
-
-        return (true, $"Hoşgeldin {user.Username}, giriş başarılı!", token);
-    }
-
-    // --- HESAP SİLME (Kullanıcının Kendisi) ---
-    public async Task<(bool Success, string Message)> DeleteAccountAsync(int userId, string password)
-    {
-        var user = await _context.Users.FindAsync(userId);
+        var user = await _userManager.FindByNameAsync(request.Username);
         if (user == null) return (false, "Kullanıcı bulunamadı.");
 
-        // Güvenlik: Silmeden önce şifresini tekrar doğruluyoruz!
-        if (!BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
-            return (false, "Şifre yanlış. Hesabınızı silmek için şifrenizi doğru girmelisiniz.");
+        if (!await _userManager.CheckPasswordAsync(user, request.Password))
+            return (false, "Şifre yanlış.");
 
-        _context.Users.Remove(user);
-        await _context.SaveChangesAsync();
-        return (true, "Hesabınız başarıyla silindi.");
+        return (true, GenerateJwtToken(user));
     }
 
-    // --- [YENİ EKLENDİ] ADMIN: TÜM KULLANICILARI LİSTELE ---
+    // 👇 GERİ EKLENEN ÖZELLİK: Hesap Silme
+    public async Task<(bool Success, string Message)> DeleteAccountAsync(string username)
+    {
+        var user = await _userManager.FindByNameAsync(username);
+        if (user == null) return (false, "Kullanıcı bulunamadı.");
+
+        var result = await _userManager.DeleteAsync(user);
+        return result.Succeeded ? (true, "Hesap silindi.") : (false, "Silinemedi.");
+    }
+
+    // 👇 GERİ EKLENEN ÖZELLİK: Tüm Kullanıcıları Listeleme
     public async Task<IEnumerable<UserDto>> GetAllUsersAsync()
     {
-        return await _context.Users
-            .Select(u => new UserDto 
+        // Burada sadece 'Username' -> 'UserName' değişikliği yaptım, kodun aynen duruyor.
+        return await _userManager.Users
+            .Select(u => new UserDto
             {
                 Id = u.Id,
-                Username = u.Username,
-                Role = u.Role
+                Username = u.UserName! // Burası hatayı çözen kısım
             })
             .ToListAsync();
     }
 
-    // --- [YENİ EKLENDİ] ADMIN: KULLANICIYI BANLA/SİL ---
-    public async Task<(bool Success, string Message)> DeleteUserByIdAsync(int id)
-    {
-        var user = await _context.Users.FindAsync(id);
-        if (user == null) return (false, "Kullanıcı bulunamadı.");
-
-        // Güvenlik: Manager kendini yanlışlıkla silemesin
-        if (user.Role == "Manager") return (false, "Yöneticiler silinemez.");
-
-        _context.Users.Remove(user);
-        await _context.SaveChangesAsync();
-        return (true, "Kullanıcı sistemden atıldı.");
-    }
-
-    // --- TOKEN OLUŞTURUCU ---
-    private string CreateToken(User user)
+    private string GenerateJwtToken(User user)
     {
         var claims = new List<Claim>
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new Claim(ClaimTypes.Name, user.Username),
-            new Claim(ClaimTypes.Role, user.Role)
+            new Claim(ClaimTypes.Name, user.UserName ?? "")
         };
 
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
-            _configuration.GetSection("AppSettings:Token").Value!));
+        if (!string.IsNullOrEmpty(user.Role)) 
+            claims.Add(new Claim(ClaimTypes.Role, user.Role));
 
-        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha512Signature);
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-        var tokenDescriptor = new SecurityTokenDescriptor
-        {
-            Subject = new ClaimsIdentity(claims),
-            Expires = DateTime.Now.AddDays(1),
-            SigningCredentials = creds
-        };
+        var token = new JwtSecurityToken(
+            issuer: _configuration["Jwt:Issuer"],
+            audience: _configuration["Jwt:Audience"],
+            claims: claims,
+            expires: DateTime.UtcNow.AddHours(2),
+            signingCredentials: creds
+        );
 
-        var tokenHandler = new JwtSecurityTokenHandler();
-        var token = tokenHandler.CreateToken(tokenDescriptor);
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
 
-        return tokenHandler.WriteToken(token);
+    // 👇 GERİ EKLENEN ÖZELLİK: Kullanıcıyı ID ile Silme (Banlama)
+    public async Task<(bool Success, string Message)> DeleteUserByIdAsync(int id)
+    {
+        var user = await _userManager.FindByIdAsync(id.ToString());
+        if (user == null) return (false, "Kullanıcı bulunamadı.");
+
+        var result = await _userManager.DeleteAsync(user);
+        return result.Succeeded ? (true, "Kullanıcı silindi.") : (false, "Silinemedi.");
     }
 }

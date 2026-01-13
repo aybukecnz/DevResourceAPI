@@ -42,10 +42,10 @@ public class SocialService : ISocialService
     }
 
     //  TAKİP İŞLEMİ 
-    public async Task<(bool Success, string Message)> ToggleUserFollowAsync(string targetUsername, int currentUserId)
+    public async Task<(bool Success, string Message)> ToggleUserFollowAsync(string targetUserName, int currentUserId)
     {
         // İsmi verilen kullanıcıyı bul
-        var targetUser = await _context.Users.FirstOrDefaultAsync(u => u.Username == targetUsername);
+        var targetUser = await _context.Users.FirstOrDefaultAsync(u => u.UserName == targetUserName);
         
         if (targetUser == null) 
             return (false, "Böyle bir kullanıcı bulunamadı.");
@@ -62,14 +62,14 @@ public class SocialService : ISocialService
         {
             _context.UserFollows.Remove(existingFollow);
             await _context.SaveChangesAsync();
-            return (true, $"{targetUsername} takipten çıkarıldı.");
+            return (true, $"{targetUserName} takipten çıkarıldı.");
         }
         else
         {
             var newFollow = new UserFollow { FollowerId = currentUserId, FollowingId = targetUser.Id };
             _context.UserFollows.Add(newFollow);
             await _context.SaveChangesAsync();
-            return (true, $"{targetUsername} takip edildi! 🚀");
+            return (true, $"{targetUserName} takip edildi! 🚀");
         }
     }
 }

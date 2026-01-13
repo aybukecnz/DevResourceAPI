@@ -6,6 +6,8 @@ using DevResourceAPI; // Filtre dosyasını görmek için
 using DevResourceAPI.Data;
 using DevResourceAPI.Services;
 using OpenApi = Microsoft.OpenApi.Models;
+using DevResourceAPI.Models; // User modeli için
+using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,12 +15,23 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
 );
-
+builder.Services.AddIdentityApiEndpoints<User>(options => 
+{
+    options.User.RequireUniqueEmail = false;
+    options.Password.RequireDigit = false;
+    options.Password.RequiredLength = 3;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequireUppercase = false;
+    options.Password.RequireLowercase = false;
+})
+.AddRoles<IdentityRole<int>>()
+.AddEntityFrameworkStores<AppDbContext>();
 // --- SERVİSLER ---
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IResourceService, ResourceService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ISocialService, SocialService>();
+builder.Services.AddScoped<IUserService, UserService>(); 
 
 // --- CONTROLLERS ---
 builder.Services.AddControllers().AddNewtonsoftJson();
@@ -36,7 +49,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = false
         };
     });
-
 // --- SWAGGER AYARLARI (DÜZELTİLEN KISIM) ---
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
