@@ -4,7 +4,6 @@ using DevResourceAPI.Models;
 
 namespace DevResourceAPI.Data;
 
-
 public class AppDbContext : DbContext
 {
     
@@ -19,7 +18,6 @@ public class AppDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // BEĞENİ İLİŞKİSİ 
         
         // Composite Key: Bir kullanıcı aynı kaynağı sadece 1 kere beğenebilir.
         // (UserId + ResourceId) ikilisi benzersiz (Primary Key) olacak.
@@ -39,20 +37,55 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<UserFollow>()
             .HasKey(uf => new { uf.FollowerId, uf.FollowingId });
 
-        // Takip Eden (Ben) -> Takip Ettiklerim listesine bağlanır
+        
         modelBuilder.Entity<UserFollow>()
             .HasOne(uf => uf.Follower)
             .WithMany(u => u.Following)
             .HasForeignKey(uf => uf.FollowerId)
             .OnDelete(DeleteBehavior.Restrict); // Kullanıcı silinirse veritabanı hata vermesin, biz yönetiriz.
 
-        // Takip Edilen (Sen) -> Takipçiler listesine bağlanır
+        
         modelBuilder.Entity<UserFollow>()
             .HasOne(uf => uf.Following)
             .WithMany(u => u.Followers)
             .HasForeignKey(uf => uf.FollowingId)
             .OnDelete(DeleteBehavior.Restrict);
     }
- 
- 
+
+    //BaseEntity otomasyonu
+    // Senkron kayıtlar için
+        public override int SaveChanges()
+    {
+        SetBaseEntityDates();
+        return base.SaveChanges();              
+    }
+    // Asenkron kayıtlar için
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        SetBaseEntityDates();
+        return await base.SaveChangesAsync(cancellationToken);
+    }
+    //ortak tarih atama mantığı
+    private void SetBaseEntityDates()
+    {
+        var entries = ChangeTracker.Entries<BaseEntity>();
+
+        foreach (var entry in entries)
+        {
+            switch (entry.State)
+            {
+                case EntityState.Added:
+                    // Yeni ekleniyorsa CreatedDate ata
+                    // PostgreSQL için UTC kullanmak en sağlıklı standarttır
+                    entry.Entity.CreatedAt = DateTime.UtcNow; 
+                    break;
+
+                case EntityState.Modified:
+                    // Güncelleniyorsa UpdatedDate ata
+                    entry.Entity.UpdatedAt = DateTime.UtcNow;
+                    break;
+            }
+        }
+    
+}
 }
