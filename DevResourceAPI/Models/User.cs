@@ -13,8 +13,8 @@ namespace DevResourceAPI.Models
 
 //      public byte[] PasswordHash { get; set; } = Array.Empty<byte>();
 //      public byte[] PasswordSalt { get; set; } = Array.Empty<byte>();
-// ESKİDEN: public byte[] PasswordHash { get; set; }
-// YENİSİ: String olmalı çünkü BCrypt string döner!
+//      ESKİDEN: public byte[] PasswordHash { get; set; }
+//      YENİSİ: String olmalı çünkü BCrypt string döner!
     public virtual ICollection<Category>? Categories { get; set; }
     public virtual ICollection<Resource>? Resources { get; set; }
 

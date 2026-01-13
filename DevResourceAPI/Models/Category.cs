@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 namespace DevResourceAPI.Models;
 
-public class Category
+public class Category: BaseEntity
 {
     public int Id { get; set; }
     [Required(ErrorMessage = "Kategori adı zorunludur.")]

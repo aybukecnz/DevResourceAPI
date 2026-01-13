@@ -1,6 +1,6 @@
 namespace DevResourceAPI.Models;
 
-public class UserFollow
+public class UserFollow : BaseEntity
 {
     public int FollowerId { get; set; }
     public User Follower { get; set; }  = null!;
@@ -8,5 +8,4 @@ public class UserFollow
     public int FollowingId { get; set; }
     public User Following { get; set; } = null!;
     
-    public DateTime FollowedAt { get; set; } = DateTime.UtcNow;
 }

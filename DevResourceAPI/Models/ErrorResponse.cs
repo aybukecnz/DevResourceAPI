@@ -1,6 +1,6 @@
 namespace DevResourceAPI.Models;
 
-public class ErrorResponse
+public class ErrorResponse: BaseEntity
 {
     public int StatusCode { get; set; }
     public string? Message { get; set; }
