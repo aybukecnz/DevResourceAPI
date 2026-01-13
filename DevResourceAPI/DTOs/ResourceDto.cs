@@ -9,4 +9,6 @@ public class ResourceDto
     public int CategoryId { get; set; } // Bu eksikti, hata veriyordu
     public string CategoryName { get; set; } = string.Empty;
     public string OwnerName { get; set; } = string.Empty;
+    public int LikeCount { get; set; }      
+    public bool IsLikedByMe { get; set; }
 }

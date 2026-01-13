@@ -3,6 +3,7 @@ using DevResourceAPI.Models;
 using DevResourceAPI.DTOs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.JsonPatch;
+using System.Drawing;
 
 namespace DevResourceAPI.Services;
 
@@ -15,15 +16,17 @@ public class ResourceService : IResourceService
         _context = context;
     }
 
+    // --- 1. LİSTELEME ---
     public async Task<(IEnumerable<ResourceDto> Data, int TotalRecords)> GetAllResourcesAsync(
-        string? search, int? categoryId, int pageNumber, int pageSize)
+        string? search, int? categoryId, int? userId, int pageNumber, int pageSize, int? currentUserId)
     {
         var query = _context.Resources
             .Include(r => r.Category)
             .Include(r => r.User)
+            .Include(r => r.Likes)
             .AsQueryable();
 
-        // NULL CHECK: Description veya Title null gelirse patlamasın diye (?? "") ekledik.
+        // ARAMA
         if (!string.IsNullOrWhiteSpace(search))
         {
             search = search.ToLower();
@@ -31,27 +34,40 @@ public class ResourceService : IResourceService
                                      (r.Description != null && r.Description.ToLower().Contains(search)));
         }
 
+        // FİLTRELEME
         if (categoryId.HasValue)
         {
             query = query.Where(r => r.CategoryId == categoryId.Value);
         }
 
+        // Toplam Kayıt Sayısı
         var totalRecords = await query.CountAsync();
 
+        // SIRALAMA (Her durumda geçerli)
+        query = query.OrderByDescending(r => r.Id);
+
+        // --- DEĞİŞİKLİK BURADA: SAYFALAMA MANTIĞI ---
+        // Eğer pageSize -1 DEĞİLSE sayfalama yap. -1 ise bu bloğu atla (Hepsini çek).
+        if (pageSize != -1)
+        {
+            query = query
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize);
+        }
+
+        // PROJECTION (Veriyi DTO'ya çevirme)
         var result = await query
-            .OrderByDescending(r => r.Id)
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
             .Select(r => new ResourceDto 
             {
                 Id = r.Id,
-                Title = r.Title ?? "Başlıksız", // Null ise varsayılan metin
-                Description = r.Description ?? "", // Null ise boş metin
+                Title = r.Title ?? "Başlıksız",
+                Description = r.Description ?? "",
                 Url = r.Url ?? "",
                 CategoryId = r.CategoryId,
-                // İlişkili tablolar null gelebilir, kontrol edelim:
                 CategoryName = r.Category != null ? r.Category.Name : "Kategorisiz",
-                OwnerName = r.User != null ? r.User.Username : "Bilinmiyor"
+                OwnerName = r.User != null ? r.User.Username : "Bilinmiyor",
+                LikeCount = r.Likes.Count,
+                IsLikedByMe = currentUserId.HasValue && r.Likes.Any(l => l.UserId == currentUserId.Value)
             })
             .ToListAsync();
 

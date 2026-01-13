@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace DevResourceAPI.Models;
 
-public class Resource
+public class Resource : BaseEntity
 {
     public int Id { get; set; }
 

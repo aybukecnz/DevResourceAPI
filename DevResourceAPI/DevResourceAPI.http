@@ -1,6 +1,11 @@
 @DevResourceAPI_HostAddress = http://localhost:5181
 
-GET {{DevResourceAPI_HostAddress}}/weatherforecast/
+GET {{DevResourceAPI_HostAddress}}/api/Resource
 Accept: application/json
 
+GET {{DevResourceAPI_HostAddress}}/api/Resource/grouped
+Accept: application/json
+
+GET {{DevResourceAPI_HostAddress}}/api/Resource/1
+Accept: application/json
 ###

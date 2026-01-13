@@ -19,34 +19,45 @@ public class ResourceController : ControllerBase
         _resourceService = resourceService;
     }
 
-    // GET: api/Resource
     [HttpGet]
     public async Task<IActionResult> GetAllResources(
         [FromQuery] string? search,
         [FromQuery] int? categoryId,
+        [FromQuery] int? userId,        // <-- Parametre 3
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10)
     {
-        // İşte hatayı çözen kısım burası: Parametreleri eksiksiz gönderiyoruz
-        var result = await _resourceService.GetAllResourcesAsync(search, categoryId, pageNumber, pageSize);
+        // 1. EKSİK OLAN KISIM BURASIYDI: Giriş yapan kullanıcıyı bulma kodu
+        int? currentUserId = null;
+        if (User.Identity != null && User.Identity.IsAuthenticated)
+        {
+            var claimId = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (claimId != null) currentUserId = int.Parse(claimId.Value);
+        }
+
+        // 2. EKSİK OLAN KISIM: currentUserId'yi metoda gönderme
+        var result = await _resourceService.GetAllResourcesAsync(
+            search, 
+            categoryId, 
+            userId,        
+            pageNumber, 
+            pageSize, 
+            currentUserId); // <-- İŞTE BURAYA EKLİYORUZ
 
         return Ok(new 
         { 
             TotalRecords = result.TotalRecords,
-            PageNumber = pageNumber,
-            PageSize = pageSize,
-            TotalPages = (int)Math.Ceiling(result.TotalRecords / (double)pageSize),
             Data = result.Data
         });
     }
 
-    // GET: api/Resource/grouped (YENİ ÖZELLİK)
-    [HttpGet("grouped")]
-    public async Task<ActionResult<IEnumerable<UserGroupedResourceDto>>> GetGroupedResources()
-    {
-        var groupedResources = await _resourceService.GetAllResourcesGroupedAsync();
-        return Ok(groupedResources);
-    }
+    // // GET: api/Resource/grouped (YENİ ÖZELLİK)
+    // [HttpGet("grouped")]
+    // public async Task<ActionResult<IEnumerable<UserGroupedResourceDto>>> GetGroupedResources()
+    // {
+    //     var groupedResources = await _resourceService.GetAllResourcesGroupedAsync();
+    //     return Ok(groupedResources);
+    // }
 
     // GET: api/Resource/5
     [HttpGet("{id}")]
