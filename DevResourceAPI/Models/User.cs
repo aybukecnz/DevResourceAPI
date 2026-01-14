@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Identity;
-using System.ComponentModel.DataAnnotations;
 
 namespace DevResourceAPI.Models;
 
@@ -8,7 +7,7 @@ public class User : IdentityUser<int>
     // IdentityUser zaten Id, UserName, Email, PasswordHash içeriyor.
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public DateTime? UpdatedAt { get; set; } // Soru işareti (?) çok önemli!
+    public DateTime? UpdatedAt { get; set; } // ? çok önemli
 
     public string Role { get; set; } = "User";
 

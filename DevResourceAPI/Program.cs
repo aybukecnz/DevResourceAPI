@@ -44,7 +44,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         {
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8
-                .GetBytes(builder.Configuration.GetSection("AppSettings:Token").Value!)),
+                .GetBytes(builder.Configuration["Jwt:Key"]!)),
             ValidateIssuer = false,
             ValidateAudience = false
         };
@@ -89,8 +89,17 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+// 1. ÖNCE KİMLİK DOĞRULAMA (Sen kimsin?)
 app.UseAuthentication();
+// 2. YENİ GÜVENLİK KATMANI (Anahtarın var mı?)
+app.UseMiddleware<DevResourceAPI.Middleware.ApiKeyMiddleware>();
+// 3. SONRA YETKİLENDİRME (Yetkin var mı?)
 app.UseAuthorization();
 app.MapControllers();
 
+
+if (app.Environment.IsDevelopment())
+{
+    await DevResourceAPI.Data.DbSeeder.SeedData(app, builder.Configuration);
+}
 app.Run();
