@@ -4,20 +4,14 @@ namespace DevResourceAPI.Services;
 
 public interface IAuthService
 {
-    // Register: Service ile uyumlu
-    Task<(bool Success, string Message)> RegisterAsync(UserRegisterDto request);
-
-    // DÜZELTME 1: Service (bool, string) dönüyor, Interface de öyle olmalı.
-    // Eskisi: (bool Success, string Message, string? Token) idi.
-    Task<(bool Success, string Token)> LoginAsync(UserLoginDto request);
-
-    //  DÜZELTME 2: Service 'string username' alıyor, Interface de öyle olmalı.
-    // Eskisi: (int userId, string password) idi.
-    Task<(bool Success, string Message)> DeleteAccountAsync(string username);
-
+    // Eski tuple hali: Task<(bool Success, string Message)> RegisterAsync(UserRegisterDto request);
+    Task<ServiceResult> RegisterAsync(UserRegisterDto request);
+    //Task<(bool Success, string Token)> LoginAsync(UserLoginDto request);
+    Task<ServiceResult<string>> LoginAsync(UserLoginDto request);
+    Task<ServiceResult> DeleteAccountAsync(string username);
     // Tüm Kullanıcıları Listele (Manager için)
-    Task<IEnumerable<UserDto>> GetAllUsersAsync();
-
+    //Task<IEnumerable<UserDto>> GetAllUsersAsync(); burda direkt liste görünüyordu, şimdi kutuya koyulacak
+    Task<ServiceResult<IEnumerable<UserDto>>> GetAllUsersAsync();
     // Kullanıcıyı ID ile Sil (Manager için - Banlama)
-    Task<(bool Success, string Message)> DeleteUserByIdAsync(int id);
+    Task<ServiceResult> DeleteUserByIdAsync(int id);
 }

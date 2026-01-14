@@ -7,7 +7,7 @@ namespace DevResourceAPI.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize] // Sadece giriş yapmış kullanıcılar beğenebilir/takip edebilir
+[Authorize]
 public class SocialController : ControllerBase
 {
     private readonly ISocialService _socialService;
@@ -17,7 +17,6 @@ public class SocialController : ControllerBase
         _socialService = socialService;
     }
 
-    // POST: api/Social/like/5
     [HttpPost("like/{resourceId}")]
     public async Task<IActionResult> LikeResource(int resourceId)
     {
@@ -29,7 +28,6 @@ public class SocialController : ControllerBase
         return Ok(new { message = result.Message });
     }
 
-    // POST: api/Social/follow/3
     [HttpPost("follow/{username}")]
     public async Task<IActionResult> FollowUser(string username)
     {

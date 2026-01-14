@@ -23,10 +23,9 @@ public class AuthController : ControllerBase
 
         if (!result.Success)
         {
-            return BadRequest(new { Message = result.Message });
+            return BadRequest(result);
         }
-
-        return Ok(new { Message = result.Message });
+        return Ok(result);
     }
 
     [HttpPost("login")]
@@ -39,10 +38,9 @@ public class AuthController : ControllerBase
         if (!result.Success)
         {
             // Başarısızsa result.Token aslında hata mesajıdır (Service öyle ayarlandı)
-            return BadRequest(new { Message = result.Token });
+            return BadRequest(result);
         }
-
-        return Ok(new { Token = result.Token });
+        return Ok(result);
     }
 
     [HttpDelete("delete")]
@@ -60,9 +58,9 @@ public class AuthController : ControllerBase
 
         if (!result.Success)
         {
-            return BadRequest(new { Message = result.Message });
+            return BadRequest(result);
         }
 
-        return Ok(new { Message = result.Message });
+        return Ok(result);
     }
 }

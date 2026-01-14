@@ -28,41 +28,39 @@ public class CategoryController : ControllerBase
     {
         var result = await _categoryService.GetAllCategoriesAsync(search, pageNumber, pageSize);
 
+        if (!result.Success) return BadRequest(result);
+
+        // PagedResult yapısı: Data.Items ve Data.TotalRecords
         return Ok(new 
         { 
-            TotalRecords = result.TotalRecords,
-            Data = result.Data 
+            TotalRecords = result.Data!.TotalRecords,
+            Data = result.Data.Items 
         });
     }
 
     [HttpPost]
     [Authorize]
-    // 1. Dönüş tipini 'ActionResult<Category>' yerine 'ActionResult<CategoryDto>' yap
     public async Task<ActionResult<CategoryDto>> CreateCategory([FromBody] CreateCategoryDto request)
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var userName = User.Identity?.Name ?? "Kullanıcı"; // Token'dan isim al
+        var userName = User.Identity?.Name ?? "Kullanıcı";
 
-        // DTO -> Entity
-        var category = new Category
-        {
-            Name = request.Name,
-            UserId = userId
-        };
+        var category = new Category { Name = request.Name, UserId = userId };
 
-        // Servise kaydettir
-        var createdCategory = await _categoryService.CreateCategoryAsync(category, userId);
+        var result = await _categoryService.CreateCategoryAsync(category, userId);
 
-        // Entity -> DTO Çevrimi (Temiz Dönüş İçin)
-        var returnDto = new CategoryDto
+        if (!result.Success) return BadRequest(new { message = result.Message });
+
+        var createdCategory = result.Data!;
+
+        return Ok(new CategoryDto
         {
             Id = createdCategory.Id,
             Name = createdCategory.Name,
-            OwnerName = userName // Token'daki ismi basıyoruz
-        };
-
-        return Ok(returnDto);
+            OwnerName = userName
+        });
     }
+
     [HttpPut("{id}")]
     [Authorize]
     public async Task<IActionResult> UpdateCategory(int id, [FromBody] UpdateCategoryDto request)
@@ -70,17 +68,10 @@ public class CategoryController : ControllerBase
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
         var userRole = User.FindFirst(ClaimTypes.Role)?.Value ?? "User";
 
-        // DTO -> Entity Dönüşümü (Mapping)
-        // Burada sadece ismi al, güvenli.
-        var category = new Category
-        {
-            Name = request.Name
-        };
+        var result = await _categoryService.UpdateCategoryAsync(id, new Category { Name = request.Name }, userId, userRole);
 
-        var (success, message) = await _categoryService.UpdateCategoryAsync(id, category, userId, userRole);
-
-        if (!success) return StatusCode(403, new { message });
-        return Ok(new { message });
+        if (!result.Success) return StatusCode(403, new { message = result.Message });
+        return Ok(new { message = result.Message });
     }
 
     [HttpDelete("{id}")]
@@ -92,9 +83,9 @@ public class CategoryController : ControllerBase
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
         var userRole = User.FindFirst(ClaimTypes.Role)!.Value;
 
-        var (success, message) = await _categoryService.DeleteCategoryAsync(id, userId, userRole);
+        var result = await _categoryService.DeleteCategoryAsync(id, userId, userRole);
 
-        if (!success) return StatusCode(403, new { message });
-        return Ok(new { message });
+        if (!result.Success) return StatusCode(403, new { message = result.Message });
+        return Ok(new { message = result.Message });
     }
 }

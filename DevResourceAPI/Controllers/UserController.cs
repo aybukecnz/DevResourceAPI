@@ -16,18 +16,21 @@ public class UserController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = "Admin")] // Sadece Admin rolündeki kullanıcılar erişebilir
+    [Authorize(Roles = "Manager")] // Sadece Admin rolündeki kullanıcılar erişebilir
     public async Task<IActionResult> GetAllUsers(
         [FromQuery] string? search,
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10)
     {
         var result = await _userService.GetAllUsersAsync(search, pageNumber, pageSize);
-
+        if(!result.Success)
+        {
+            return BadRequest(result);
+        }   
         return Ok(new 
         { 
-            TotalRecords = result.TotalRecords,
-            Data = result.Data 
+            TotalRecords = result.Data.TotalRecords,
+            Data = result.Data.Data 
         });
     }
 }

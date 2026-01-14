@@ -23,11 +23,10 @@ public class ResourceController : ControllerBase
     public async Task<IActionResult> GetAllResources(
         [FromQuery] string? search,
         [FromQuery] int? categoryId,
-        [FromQuery] int? userId,        // <-- Parametre 3
+        [FromQuery] int? userId,        
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10)
     {
-        // 1. EKSİK OLAN KISIM BURASIYDI: Giriş yapan kullanıcıyı bulma kodu
         int? currentUserId = null;
         if (User.Identity != null && User.Identity.IsAuthenticated)
         {
@@ -35,40 +34,28 @@ public class ResourceController : ControllerBase
             if (claimId != null) currentUserId = int.Parse(claimId.Value);
         }
 
-        // 2. EKSİK OLAN KISIM: currentUserId'yi metoda gönderme
+        // Servisten PagedResult dönüyor
         var result = await _resourceService.GetAllResourcesAsync(
-            search, 
-            categoryId, 
-            userId,        
-            pageNumber, 
-            pageSize, 
-            currentUserId); // <-- İŞTE BURAYA EKLİYORUZ
+            search, categoryId, userId, pageNumber, pageSize, currentUserId);
 
+        if (!result.Success) return BadRequest(result);
+
+        // Enterprise Erişim: .Data.Items ve .Data.TotalRecords
         return Ok(new 
         { 
-            TotalRecords = result.TotalRecords,
-            Data = result.Data
+            TotalRecords = result.Data!.TotalRecords,
+            Data = result.Data.Items // <-- BURASI DEĞİŞTİ (.Items oldu)
         });
     }
 
-    // // GET: api/Resource/grouped (YENİ ÖZELLİK)
-    // [HttpGet("grouped")]
-    // public async Task<ActionResult<IEnumerable<UserGroupedResourceDto>>> GetGroupedResources()
-    // {
-    //     var groupedResources = await _resourceService.GetAllResourcesGroupedAsync();
-    //     return Ok(groupedResources);
-    // }
-
-    // GET: api/Resource/5
     [HttpGet("{id}")]
     public async Task<ActionResult<Resource>> GetResourceById(int id)
     {
-        var resource = await _resourceService.GetResourceByIdAsync(id);
-        if (resource == null) return NotFound(new { message = "Kaynak bulunamadı." });
-        return Ok(resource);
+        var result = await _resourceService.GetResourceByIdAsync(id);
+        if (!result.Success) return NotFound(new { message = "Kaynak bulunamadı." });
+        return Ok(result.Data);
     }
 
-    // POST: api/Resource
     [HttpPost]
     [Authorize]
     public async Task<ActionResult<ResourceDto>> CreateResource([FromBody] CreateResourceDto request)
@@ -80,22 +67,26 @@ public class ResourceController : ControllerBase
         {
             Title = request.Title,
             Url = request.Url,
-            Description = request.Description, // Açıklamayı unutmuyoruz
+            Description = request.Description,
             CategoryId = request.CategoryId,
             UserId = userId
         };
 
         try 
         {
-            var createdResource = await _resourceService.CreateResourceAsync(resource, userId);
+            var result = await _resourceService.CreateResourceAsync(resource, userId);
+
+            if (!result.Success) return BadRequest(new { message = result.Message });
+
+            var createdData = result.Data!; 
 
             var returnDto = new ResourceDto
             {
-                Id = createdResource.Id,
-                Title = createdResource.Title,
-                Description = createdResource.Description ?? "",
-                Url = createdResource.Url,
-                CategoryId = createdResource.CategoryId,
+                Id = createdData.Id,
+                Title = createdData.Title,
+                Description = createdData.Description ?? "",
+                Url = createdData.Url,
+                CategoryId = createdData.CategoryId,
                 CategoryName = "Yeni Eklendi",
                 OwnerName = userName
             };
@@ -108,7 +99,6 @@ public class ResourceController : ControllerBase
         }
     }
 
-    // PUT: api/Resource/5
     [HttpPut("{id}")]
     [Authorize]
     public async Task<IActionResult> UpdateResource(int id, [FromBody] Resource resource)
@@ -122,7 +112,6 @@ public class ResourceController : ControllerBase
         return Ok(new { message = result.Message });
     }
 
-    // PATCH: api/Resource/5
     [HttpPatch("{id}")]
     [Authorize]
     public async Task<IActionResult> PatchResource(int id, [FromBody] JsonPatchDocument<Resource> patchDoc)
@@ -137,7 +126,6 @@ public class ResourceController : ControllerBase
         return Ok(new { message = result.Message });
     }
 
-    // DELETE: api/Resource/5
     [HttpDelete("{id}")]
     [Authorize]
     public async Task<IActionResult> DeleteResource(int id)

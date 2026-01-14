@@ -14,7 +14,7 @@ public class UserService : IUserService
         _userManager = userManager;
     }
 
-    public async Task<(IEnumerable<UserDto> Data, int TotalRecords)> GetAllUsersAsync(string? search, int pageNumber, int pageSize)
+    public async Task<ServiceResult<(IEnumerable<UserDto> Data, int TotalRecords)>> GetAllUsersAsync(string? search, int pageNumber, int pageSize)
     {
         var query = _userManager.Users.AsQueryable();
 
@@ -36,7 +36,7 @@ public class UserService : IUserService
         }
 
         // 3. DTO ÇEVİRİMİ
-        var result = await query
+        var users = await query
             .Select(u => new UserDto
             {
                 Id = u.Id,
@@ -44,6 +44,6 @@ public class UserService : IUserService
             })
             .ToListAsync();
 
-        return (result, totalRecords);
+        return ServiceResult<(IEnumerable<UserDto>, int)>.Ok((users, totalRecords));
     }
 }

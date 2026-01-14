@@ -3,7 +3,7 @@ using DevResourceAPI.Models;
 using DevResourceAPI.DTOs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.JsonPatch;
-using System.Drawing;
+using DevResourceAPI.Services;
 
 namespace DevResourceAPI.Services;
 
@@ -16,7 +16,8 @@ public class ResourceService : IResourceService
         _context = context;
     }
 
-    public async Task<(IEnumerable<ResourceDto> Data, int TotalRecords)> GetAllResourcesAsync(
+    // ENTERPRISE IMPL: PagedResult kullanılıyor
+    public async Task<ServiceResult<PagedResult<ResourceDto>>> GetAllResourcesAsync(
         string? search, 
         int? categoryId, 
         int? userId, 
@@ -44,18 +45,17 @@ public class ResourceService : IResourceService
         if (userId.HasValue)
             query = query.Where(r => r.UserId == userId.Value);
 
-        // --- SAYFALAMA MANTIĞI (STANDART) ---
+        // --- SAYFALAMA MANTIĞI ---
         var totalRecords = await query.CountAsync();
-        query = query.OrderByDescending(r => r.UpdatedAt ?? r.CreatedAt); // Yeniden eskiye
+        query = query.OrderByDescending(r => r.UpdatedAt ?? r.CreatedAt);
 
-        // pageSize > 0 ise sayfalama yap. (0, -1 veya negatif gelirse HEPSİNİ getir)
         if (pageSize > 0)
         {
             query = query.Skip((pageNumber - 1) * pageSize).Take(pageSize);
         }
 
         // --- DTO ÇEVİRİMİ ---
-        var result = await query
+        var list = await query
             .Select(r => new ResourceDto 
             {
                 Id = r.Id,
@@ -70,86 +70,104 @@ public class ResourceService : IResourceService
             })
             .ToListAsync();
 
-        return (result, totalRecords);
+        // PAKETLEME (Enterprise Dokunuşu)
+        var pagedData = new PagedResult<ResourceDto>(list, totalRecords);
+
+        return ServiceResult<PagedResult<ResourceDto>>.Ok(pagedData);
     }
 
-    public async Task<Resource?> GetResourceByIdAsync(int id) => await _context.Resources.FindAsync(id);
+    public async Task<ServiceResult<Resource?>> GetResourceByIdAsync(int id)
+    {
+        var resource = await _context.Resources
+            .Include(r => r.Category)
+            .FirstOrDefaultAsync(r => r.Id == id);
+            
+        if (resource == null)
+            return ServiceResult<Resource?>.Fail("Kaynak bulunamadı."); 
+            
+        return ServiceResult<Resource?>.Ok(resource);
+    }
 
-    public async Task<Resource> CreateResourceAsync(Resource resource, int userId)
+    public async Task<ServiceResult<Resource>> CreateResourceAsync(Resource resource, int userId)
     {
         var category = await _context.Categories.FirstOrDefaultAsync(c => c.Id == resource.CategoryId);
-        if (category == null) throw new Exception("Kategori bulunamadı.");
-        if (category.UserId != userId) throw new Exception("Bu kategori size ait değil.");
+        if (category == null) return ServiceResult<Resource>.Fail("Kategori bulunamadı.");
+        
+        // Kategori başkasınınsa ekleme yapamaz (Opsiyonel kural, istersen kaldırabilirsin)
+        if (category.UserId != userId) return ServiceResult<Resource>.Fail("Bu kategori size ait değil.");
 
-        resource.Description ??= ""; // Eğer null geldiyse boş string yap
+        resource.Description ??= "";
         resource.UserId = userId;
+        resource.CreatedAt = DateTime.UtcNow; // Tarih ataması önemli
         
         _context.Resources.Add(resource);
         await _context.SaveChangesAsync();
-        return resource;
+        return ServiceResult<Resource>.Ok(resource);
     }
 
-    public async Task<(bool Success, string Message)> UpdateResourceAsync(int id, Resource resource, int currentUserId, string currentUserRole)
+    public async Task<ServiceResult> UpdateResourceAsync(int id, Resource resource, int currentUserId, string currentUserRole)
     {
         var existing = await _context.Resources.FindAsync(id);
-        if (existing == null) return (false, "Kaynak bulunamadı.");
+        if (existing == null) return ServiceResult.Fail("Kaynak bulunamadı.");
         
         if (existing.UserId != currentUserId && currentUserRole != "Manager") 
-            return (false, "Yetkisiz işlem.");
+            return ServiceResult.Fail("Yetkisiz işlem.");
 
         if (resource.CategoryId != existing.CategoryId)
         {
             var targetCategory = await _context.Categories.FirstOrDefaultAsync(c => c.Id == resource.CategoryId);
-            if (targetCategory == null) return (false, "Hedef kategori yok.");
+            if (targetCategory == null) return ServiceResult.Fail("Hedef kategori yok.");
+            
             if (targetCategory.UserId != currentUserId && currentUserRole != "Manager")
-                return (false, "Kategori transferi yasak.");
+                return ServiceResult.Fail("Kategori transferi yasak.");
         }
 
         existing.Title = resource.Title;
         existing.Url = resource.Url;
-        existing.Description = resource.Description ?? ""; // Null check
+        existing.Description = resource.Description ?? "";
         existing.CategoryId = resource.CategoryId;
+        existing.UpdatedAt = DateTime.UtcNow;
         
         await _context.SaveChangesAsync();
-        return (true, "Güncellendi.");
+        return ServiceResult.Ok("Güncellendi.");
     }
 
-    // PATCH METHODU (Hatasız Versiyon)
-    public async Task<(bool Success, string Message)> PatchResourceAsync(int id, JsonPatchDocument<Resource> patchDoc, int currentUserId, string currentUserRole)
+    public async Task<ServiceResult> PatchResourceAsync(int id, JsonPatchDocument<Resource> patchDoc, int currentUserId, string currentUserRole)
     {
         var resource = await _context.Resources.FindAsync(id);
-        if (resource == null) return (false, "Kaynak bulunamadı.");
+        if (resource == null) return ServiceResult.Fail("Kaynak bulunamadı.");
 
         if (resource.UserId != currentUserId && currentUserRole != "Manager")
-            return (false, "Yetkisiz işlem.");
+            return ServiceResult.Fail("Yetkisiz işlem.");
 
         var oldCategoryId = resource.CategoryId;
 
-        // DİKKAT: ModelState parametresini kaldırdık, direkt objeye uyguluyoruz.
         patchDoc.ApplyTo(resource);
 
         if (resource.CategoryId != oldCategoryId)
         {
              var targetCategory = await _context.Categories.FindAsync(resource.CategoryId);
-             if (targetCategory == null) return (false, "Geçersiz kategori.");
+             if (targetCategory == null) return ServiceResult.Fail("Geçersiz kategori.");
+             
              if (targetCategory.UserId != currentUserId && currentUserRole != "Manager")
-                 return (false, "Kategori transferi yasak.");
+                 return ServiceResult.Fail("Kategori transferi yasak.");
         }
 
+        resource.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
-        return (true, "Kısmi güncelleme başarılı.");
+        return ServiceResult.Ok("Kısmi güncelleme başarılı.");
     }
 
-    public async Task<(bool Success, string Message)> DeleteResourceAsync(int id, int currentUserId, string currentUserRole)
+    public async Task<ServiceResult> DeleteResourceAsync(int id, int currentUserId, string currentUserRole)
     {
         var resource = await _context.Resources.FindAsync(id);
-        if (resource == null) return (false, "Kaynak bulunamadı.");
+        if (resource == null) return ServiceResult.Fail("Kaynak bulunamadı.");
 
         if (resource.UserId != currentUserId && currentUserRole != "Manager")
-            return (false, "Yetkisiz.");
+            return ServiceResult.Fail("Yetkiniz yok.");
 
         _context.Resources.Remove(resource);
         await _context.SaveChangesAsync();
-        return (true, "Silindi.");
+        return ServiceResult.Ok("Kaynak silindi.");
     }
 }
