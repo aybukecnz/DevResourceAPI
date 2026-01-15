@@ -44,7 +44,7 @@ public class ResourceController : ControllerBase
         return Ok(new 
         { 
             TotalRecords = result.Data!.TotalRecords,
-            Data = result.Data.Items // <-- BURASI DEĞİŞTİ (.Items oldu)
+            Data = result.Data.Items 
         });
     }
 

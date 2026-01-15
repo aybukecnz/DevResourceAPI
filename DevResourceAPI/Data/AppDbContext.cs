@@ -16,6 +16,7 @@ public class AppDbContext : IdentityDbContext<User, IdentityRole<int>, int>
     public DbSet<ResourceLike> ResourceLikes { get; set; }
     // DbSet<User> gerekmez, IdentityDbContext halleder.
     public DbSet<UserFollow> UserFollows { get; set; }
+    public DbSet<ErrorLog> ErrorLogs { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -60,6 +61,14 @@ public class AppDbContext : IdentityDbContext<User, IdentityRole<int>, int>
         .WithMany(u => u.LikedResources)
         .HasForeignKey(rl => rl.UserId)
         .OnDelete(DeleteBehavior.Restrict); // Kullanıcı silinirse hata vermesin (veya Cascade yapabilirsin)
+
+    // KATEGORİ İÇİN GÖRÜNMEZLİK FİLTRESİ
+    builder.Entity<Category>().HasQueryFilter(c => !c.IsDeleted);
+    
+    // Eğer User tablosunda da varsa onun için de yapabilirsin:
+    // modelBuilder.Entity<User>().HasQueryFilter(u => !u.IsDeleted);
+
+    base.OnModelCreating(builder);    
     }
 
     

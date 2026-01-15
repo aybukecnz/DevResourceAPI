@@ -7,6 +7,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using System.Linq;
 
 namespace DevResourceAPI.Services;
 
@@ -61,7 +62,7 @@ public class AuthService : IAuthService
         return ServiceResult<string>.Ok(token);
     }
 
-    // ✅ DÜZELTİLEN KISIM: Sayfalama Parametreleri ve totalRecords eklendi
+    // DÜZELTİLEN KISIM: Sayfalama Parametreleri ve totalRecords eklendi
     public async Task<ServiceResult<PagedResult<UserDto>>> GetAllUsersAsync(int pageNumber, int pageSize)
     {
         var query = _userManager.Users.AsQueryable();
@@ -157,4 +158,23 @@ public class AuthService : IAuthService
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
-}
+    public async Task<ServiceResult<IEnumerable<ErrorLogDto>>> GetErrorLogsAsync()
+{
+    // Veritabanından logları çekiyoruz
+    var logs = await _context.ErrorLogs
+        .AsNoTracking() // Okuma yaparken performans artırır (Takip etmez)
+        .OrderByDescending(x => x.CreatedAt) // En yeni hatalar en üstte
+        .Take(50) // Sistemi yormamak için son 50 hatayı getir
+        .Select(x => new ErrorLogDto
+        {
+            Id = x.Id,
+            RequestPath = x.RequestPath,
+            RequestMethod = x.RequestMethod,
+            ErrorMessage = x.ErrorMessage,
+            CreatedAt = x.CreatedAt
+            // StackTrace'i bilerek almıyoruz (Güvenlik)
+        })
+        .ToListAsync();
+
+    return ServiceResult<IEnumerable<ErrorLogDto>>.Ok(logs.AsEnumerable());
+}}

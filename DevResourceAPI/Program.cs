@@ -81,7 +81,8 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var app = builder.Build();
-
+// Bu satır, hava yastığını devreye sokar (globalexceptionmiddleware'i)
+app.UseMiddleware<DevResourceAPI.Middlewares.GlobalExceptionMiddleware>();
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

@@ -1,4 +1,5 @@
 using DevResourceAPI.DTOs;
+using DevResourceAPI.Models.Common;    
 
 namespace DevResourceAPI.Services;
 
@@ -16,4 +17,5 @@ public interface IAuthService
     Task<ServiceResult> DeleteUserByIdAsync(int id);    
     // İstatistikler
     Task<ServiceResult<SystemStatsDto>> GetSystemStatsAsync();
+    Task<ServiceResult<IEnumerable<ErrorLogDto>>> GetErrorLogsAsync();
 }

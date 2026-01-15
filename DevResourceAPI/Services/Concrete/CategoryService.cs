@@ -105,8 +105,14 @@ public class CategoryService : ICategoryService
         if (category.Resources.Any()) 
             return ServiceResult.Fail("Kategori dolu! Önce içindeki kaynakları silin.");
 
-        _context.Categories.Remove(category);
-        await _context.SaveChangesAsync();
-        return ServiceResult.Ok("Başarıyla silindi.");
+       category.IsDeleted = true;            // Silindi olarak işaretle
+    category.UpdatedAt = DateTime.UtcNow; // Ne zaman silindiğini güncelle
+
+    // Remove yerine Update kullanıyoruz (veya hiç bir şey yazmasan da EF Core değişikliği algılar)
+    _context.Categories.Update(category); 
+    
+    await _context.SaveChangesAsync();
+
+    return ServiceResult.Ok("Kategori başarıyla silindi (Soft Delete).");
     }
 }

@@ -26,10 +26,7 @@ namespace DevResourceAPI
                 }, new List<string>());
             }
             
-            // --- DEĞİŞİKLİK BURADA BİTİYOR ---
-
-
-            // --- KURAL 2: TOKEN (BEARER) İŞLEMLERİ (Aynen kalıyor) ---
+            // --- KURAL 2: TOKEN (BEARER) İŞLEMLERİ  ---
             var declaringTypeAttributes = context.MethodInfo.DeclaringType?.GetCustomAttributes(true) ?? Array.Empty<object>();
             var methodAttributes = context.MethodInfo.GetCustomAttributes(true);
 
