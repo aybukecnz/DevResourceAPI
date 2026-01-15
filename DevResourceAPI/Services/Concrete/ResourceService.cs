@@ -16,64 +16,67 @@ public class ResourceService : IResourceService
         _context = context;
     }
 
-    // ENTERPRISE IMPL: PagedResult kullanılıyor
     public async Task<ServiceResult<PagedResult<ResourceDto>>> GetAllResourcesAsync(
-        string? search, 
         int? categoryId, 
-        int? userId, 
+        string? search, 
         int pageNumber, 
-        int pageSize, 
-        int? currentUserId)
+        int pageSize)
     {
         var query = _context.Resources
-            .Include(r => r.Category)
-            .Include(r => r.User)
-            .Include(r => r.Likes)
+            .Include(r => r.Category) // Kategori ismini çekmek için
+            .Include(r => r.User)     // Yükleyen kullanıcı ismini çekmek için
+            .AsNoTracking()
             .AsQueryable();
 
-        // --- ARAMA & FİLTRELEME ---
+        // 1. Filtrelemeler
+        if (categoryId.HasValue)
+        {
+            query = query.Where(r => r.CategoryId == categoryId.Value);
+        }
+
         if (!string.IsNullOrWhiteSpace(search))
         {
             search = search.ToLower();
-            query = query.Where(r => (r.Title != null && r.Title.ToLower().Contains(search)) || 
-                                     (r.Description != null && r.Description.ToLower().Contains(search)));
+            query = query.Where(r => r.Title.ToLower().Contains(search) || 
+                                     r.Description!.ToLower().Contains(search));
         }
 
-        if (categoryId.HasValue)
-            query = query.Where(r => r.CategoryId == categoryId.Value);
-
-        if (userId.HasValue)
-            query = query.Where(r => r.UserId == userId.Value);
-
-        // --- SAYFALAMA MANTIĞI ---
+        // 2. Toplam Kayıt Sayısı
         var totalRecords = await query.CountAsync();
-        query = query.OrderByDescending(r => r.UpdatedAt ?? r.CreatedAt);
 
+        // 3. Sıralama (En yeniden en eskiye)
+        query = query.OrderByDescending(r => r.CreatedAt);
+
+        // 4. Sayfalama
         if (pageSize > 0)
         {
             query = query.Skip((pageNumber - 1) * pageSize).Take(pageSize);
         }
 
-        // --- DTO ÇEVİRİMİ ---
-        var list = await query
-            .Select(r => new ResourceDto 
+        // 5. Veriyi Çekme
+        var resources = await query
+            .Select(r => new ResourceDto
             {
                 Id = r.Id,
-                Title = r.Title ?? "Başlıksız",
-                Description = r.Description ?? "",
-                Url = r.Url ?? "",
-                CategoryId = r.CategoryId,
-                CategoryName = r.Category != null ? r.Category.Name : "Kategorisiz",
-                OwnerName = r.User != null ? r.User.UserName! : "Bilinmiyor",
-                LikeCount = r.Likes.Count,
-                IsLikedByMe = currentUserId.HasValue && r.Likes.Any(l => l.UserId == currentUserId.Value)
+                Title = r.Title,
+                Description = r.Description!,
+                Url = r.Url,
+                CategoryName = r.Category != null ? r.Category.Name : "Genel",
+                CreatedBy = r.User != null ? r.User.UserName! : "Anonim",
+                CreatedAt = r.CreatedAt
             })
             .ToListAsync();
 
-        // PAKETLEME (Enterprise Dokunuşu)
-        var pagedData = new PagedResult<ResourceDto>(list, totalRecords);
+        // 👇 HATA BURADAYDI, ŞİMDİ DÜZELTİYORUZ 👇
+        // PagedResult artık 4 parametre istiyor:
+        var pagedResult = new PagedResult<ResourceDto>(
+            resources,      // 1. Veri Listesi
+            totalRecords,   // 2. Toplam Sayı
+            pageNumber,     // 3. Sayfa Numarası (YENİ)
+            pageSize        // 4. Sayfa Boyutu (YENİ)
+        );
 
-        return ServiceResult<PagedResult<ResourceDto>>.Ok(pagedData);
+        return ServiceResult<PagedResult<ResourceDto>>.Ok(pagedResult);
     }
 
     public async Task<ServiceResult<Resource?>> GetResourceByIdAsync(int id)

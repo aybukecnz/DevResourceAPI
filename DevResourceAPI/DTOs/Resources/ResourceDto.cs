@@ -11,4 +11,6 @@ public class ResourceDto
     public string OwnerName { get; set; } = string.Empty;
     public int LikeCount { get; set; }      
     public bool IsLikedByMe { get; set; }
+    public string CreatedBy { get; set; } = string.Empty;  
+    public DateTime CreatedAt { get; set; } 
 }

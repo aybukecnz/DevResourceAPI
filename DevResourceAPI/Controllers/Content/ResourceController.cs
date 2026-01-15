@@ -36,7 +36,7 @@ public class ResourceController : ControllerBase
 
         // Servisten PagedResult dönüyor
         var result = await _resourceService.GetAllResourcesAsync(
-            search, categoryId, userId, pageNumber, pageSize, currentUserId);
+            categoryId, search, pageNumber, pageSize);
 
         if (!result.Success) return BadRequest(result);
 

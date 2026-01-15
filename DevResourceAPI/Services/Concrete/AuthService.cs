@@ -87,10 +87,15 @@ public class AuthService : IAuthService
                 CreatedAt = u.CreatedAt 
             })
             .ToListAsync();
+        // 5. Sonucu PagedResult ile paketle
+    var pagedResult = new PagedResult<UserDto>(
+        users,          //  Veri
+        totalRecords,   
+        pageNumber,    
+        pageSize        
+    );
 
-        // 5. Paketle
-        var pagedData = new PagedResult<UserDto>(users, totalRecords);
-        return ServiceResult<PagedResult<UserDto>>.Ok(pagedData);
+    return ServiceResult<PagedResult<UserDto>>.Ok(pagedResult);
     }
     public async Task<ServiceResult> DeleteAccountAsync(string username)
     {
