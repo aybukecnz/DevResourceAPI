@@ -11,7 +11,9 @@ public interface IAuthService
     Task<ServiceResult> DeleteAccountAsync(string username);
     // Tüm Kullanıcıları Listele (Manager için)
     //Task<IEnumerable<UserDto>> GetAllUsersAsync(); burda direkt liste görünüyordu, şimdi kutuya koyulacak
-    Task<ServiceResult<IEnumerable<UserDto>>> GetAllUsersAsync();
+    Task<ServiceResult<PagedResult<UserDto>>> GetAllUsersAsync(int pageNumber, int pageSize);
     // Kullanıcıyı ID ile Sil (Manager için - Banlama)
-    Task<ServiceResult> DeleteUserByIdAsync(int id);
+    Task<ServiceResult> DeleteUserByIdAsync(int id);    
+    // İstatistikler
+    Task<ServiceResult<SystemStatsDto>> GetSystemStatsAsync();
 }

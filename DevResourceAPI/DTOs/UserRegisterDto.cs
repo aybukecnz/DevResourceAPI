@@ -5,7 +5,7 @@ namespace DevResourceAPI.DTOs;
 public class UserRegisterDto
 {
     [Required]
-    public string Username { get; set; } = string.Empty;
+    public string UserName { get; set; } = string.Empty;
 
     [Required]
     [MinLength(6, ErrorMessage = "Şifre en az 6 karakter olmalıdır.")]

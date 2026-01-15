@@ -40,7 +40,7 @@ public class UserService : IUserService
             .Select(u => new UserDto
             {
                 Id = u.Id,
-                Username = u.UserName!,
+                UserName = u.UserName!,
             })
             .ToListAsync();
 

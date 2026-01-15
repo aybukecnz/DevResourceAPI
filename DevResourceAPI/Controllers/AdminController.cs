@@ -23,11 +23,13 @@ public class AdminController : ControllerBase
 
     // TÜM KULLANICILARI LİSTELE 
     // GET: api/Admin/users
-    [HttpGet("users")]
-    public async Task<IActionResult> GetAllUsers()
+  [HttpGet("users")]
+    public async Task<IActionResult> GetAllUsers([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
     {
-        var users = await _authService.GetAllUsersAsync();
-        return Ok(users);
+        var result = await _authService.GetAllUsersAsync(pageNumber, pageSize);
+        if (!result.Success) return BadRequest(result);
+
+        return Ok(result);
     }
 
     // KULLANICIYI BANLA / SİL 
@@ -37,27 +39,19 @@ public class AdminController : ControllerBase
     {
         var result = await _authService.DeleteUserByIdAsync(id);
         
-        if (!result.Success) return BadRequest(new { message = result.Message });
+        if (!result.Success) return BadRequest(result);
         
-        return Ok(new { message = result.Message });
+        return Ok(result);
     }
 
     // GENEL İSTATİSTİKLER 
     // GET: api/Admin/stats
     [HttpGet("stats")]
     public async Task<IActionResult> GetSystemStats()
-    {
-        // Basitçe veritabanındaki sayıları çek
-        var totalUsers = await _context.Users.CountAsync();
-        var totalResources = await _context.Resources.CountAsync();
-        var totalCategories = await _context.Categories.CountAsync();
-
-        return Ok(new 
-        { 
-            TotalUsers = totalUsers, 
-            TotalResources = totalResources, 
-            TotalCategories = totalCategories,
-            Message = "Sistem durumu stabil patron!"
-        });
-    }
+{
+    // Veritabanına gitmeme gerek yok, Servis benim için hazırladı bile!
+    var result = await _authService.GetSystemStatsAsync();
+    
+    return Ok(result);
+}
 }

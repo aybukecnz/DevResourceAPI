@@ -1,10 +1,10 @@
 namespace DevResourceAPI.DTOs;
 
-// <T> demek: İçine ister Kategori, ister Ürün, ister Kullanıcı koyabilirsin demek.
+// <T> generic tipi temsil eder
 public class PagedResult<T>
 {
-    public IEnumerable<T> Items { get; set; } // Verilerimiz
-    public int TotalRecords { get; set; }     // Toplam Sayı
+    public IEnumerable<T> Items { get; set; } 
+    public int TotalRecords { get; set; }     
 
     public PagedResult(IEnumerable<T> items, int totalRecords)
     {
