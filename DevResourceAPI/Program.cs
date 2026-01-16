@@ -8,6 +8,9 @@ using DevResourceAPI.Services;
 using OpenApi = Microsoft.OpenApi.Models;
 using DevResourceAPI.Models; // User modeli için
 using Microsoft.AspNetCore.Identity;
+using FluentValidation;
+using FluentValidation.AspNetCore;
+using DevResourceAPI.Validators;
 
     var builder = WebApplication.CreateBuilder(args);
 
@@ -35,6 +38,10 @@ using Microsoft.AspNetCore.Identity;
 
     // --- CONTROLLERS ---
     builder.Services.AddControllers().AddNewtonsoftJson();
+    // Otomatik validasyonu aç
+    builder.Services.AddFluentValidationAutoValidation();
+    // Validator sınıfını sisteme tanıt
+    builder.Services.AddValidatorsFromAssemblyContaining<ResourceValidator>();
 
     // --- AUTHENTICATION ---
     builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
