@@ -3,8 +3,8 @@ using DevResourceAPI.Models;
 using DevResourceAPI.Services;
 using DevResourceAPI.DTOs;
 using Microsoft.AspNetCore.Authorization;
-using System.Security.Claims;
 using Microsoft.AspNetCore.JsonPatch;
+using DevResourceAPI.Extensions; // 👈 Extension metodumuzu buraya ekledik
 
 namespace DevResourceAPI.Controllers;
 
@@ -23,24 +23,19 @@ public class ResourceController : ControllerBase
     public async Task<IActionResult> GetResources(
         [FromQuery] string? search,
         [FromQuery] int? categoryId,
-        [FromQuery] int? userId,        
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10)
     {
-        int? currentUserId = null;
-        if (User.Identity != null && User.Identity.IsAuthenticated)
-        {
-            var claimId = User.FindFirst(ClaimTypes.NameIdentifier);
-            if (claimId != null) currentUserId = int.Parse(claimId.Value);
-        }
+        // Extension sayesinde tek satırda ID alıyoruz (Giriş yapmadıysa 0 döner)
+        // Eğer 0 ise (giriş yapmamışsa) null gönderiyoruz ki servis herkese açık verileri getirsin.
+        int userId = User.GetUserId();
+        int? queryUserId = userId == 0 ? null : userId;
 
-        // Servisten PagedResult dönüyor
         var result = await _resourceService.GetResourcesAsync(
             categoryId, search, pageNumber, pageSize);
 
         if (!result.Success) return BadRequest(result);
 
-        // Enterprise Erişim: .Data.Items ve .Data.TotalRecords
         return Ok(new 
         { 
             TotalRecords = result.Data!.TotalRecords,
@@ -60,9 +55,11 @@ public class ResourceController : ControllerBase
     [Authorize]
     public async Task<ActionResult<ResourceDto>> CreateResource([FromBody] CreateResourceDto request)
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        // 🧹 TEMİZLİK 1: Extension Kullanımı
+        var userId = User.GetUserId();
         var userName = User.Identity?.Name ?? "Kullanıcı";
 
+        // Not: İleride AutoMapper ile burayı da tek satıra düşüreceğiz.
         var resource = new Resource
         {
             Title = request.Title,
@@ -72,41 +69,39 @@ public class ResourceController : ControllerBase
             UserId = userId
         };
 
-        try 
+        // 🧹 TEMİZLİK 2: Try-Catch bloğu kalktı (GlobalExceptionMiddleware halledecek)
+        var result = await _resourceService.CreateResourceAsync(resource, userId);
+
+        if (!result.Success) return BadRequest(new { message = result.Message });
+
+        var createdData = result.Data!; 
+
+        // Response DTO Hazırlığı
+        var returnDto = new ResourceDto
         {
-            var result = await _resourceService.CreateResourceAsync(resource, userId);
+            Id = createdData.Id,
+            Title = createdData.Title,
+            Description = createdData.Description ?? "",
+            Url = createdData.Url,
+            CategoryId = createdData.CategoryId,
+            CategoryName = "Yeni Eklendi", // Bunu Service'den dolu getirmek daha doğrudur
+            OwnerName = userName
+        };
 
-            if (!result.Success) return BadRequest(new { message = result.Message });
-
-            var createdData = result.Data!; 
-
-            var returnDto = new ResourceDto
-            {
-                Id = createdData.Id,
-                Title = createdData.Title,
-                Description = createdData.Description ?? "",
-                Url = createdData.Url,
-                CategoryId = createdData.CategoryId,
-                CategoryName = "Yeni Eklendi",
-                OwnerName = userName
-            };
-
-            return Ok(returnDto);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        return Ok(returnDto);
     }
 
     [HttpPut("{id}")]
     [Authorize]
     public async Task<IActionResult> UpdateResource(int id, [FromBody] Resource resource)
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var userRole = User.FindFirst(ClaimTypes.Role)?.Value ?? "User";
-
-        var result = await _resourceService.UpdateResourceAsync(id, resource, userId, userRole);
+        // 🧹 TEMİZLİK: Tekrarlayan kodlar gitti, Extension geldi
+        var result = await _resourceService.UpdateResourceAsync(
+            id, 
+            resource, 
+            User.GetUserId(), 
+            User.GetUserRole()
+        );
 
         if (!result.Success) return BadRequest(new { message = result.Message });
         return Ok(new { message = result.Message });
@@ -118,9 +113,13 @@ public class ResourceController : ControllerBase
     {
         if (patchDoc == null) return BadRequest();
 
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var userRole = User.FindFirst(ClaimTypes.Role)?.Value ?? "User";
-        var result = await _resourceService.PatchResourceAsync(id, patchDoc, userId, userRole);
+        // 🧹 TEMİZLİK: Tekrarlayan kodlar gitti
+        var result = await _resourceService.PatchResourceAsync(
+            id, 
+            patchDoc, 
+            User.GetUserId(), 
+            User.GetUserRole()
+        );
 
         if (!result.Success) return BadRequest(new { message = result.Message });
         return Ok(new { message = result.Message });
@@ -130,10 +129,12 @@ public class ResourceController : ControllerBase
     [Authorize]
     public async Task<IActionResult> DeleteResource(int id)
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var userRole = User.FindFirst(ClaimTypes.Role)?.Value ?? "User";
-
-        var result = await _resourceService.DeleteResourceAsync(id, userId, userRole);
+        // 🧹 TEMİZLİK: Tekrarlayan kodlar gitti
+        var result = await _resourceService.DeleteResourceAsync(
+            id, 
+            User.GetUserId(), 
+            User.GetUserRole()
+        );
 
         if (!result.Success) return BadRequest(new { message = result.Message });
         return Ok(new { message = result.Message });

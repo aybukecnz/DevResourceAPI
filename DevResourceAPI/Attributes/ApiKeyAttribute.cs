@@ -20,7 +20,6 @@ public class ApiKeyAttribute : Attribute, IAsyncActionFilter
             };
             return;
         }
-
         // 2. appsettings.json'daki anahtarla eşleşiyor mu?
         var appSettings = context.HttpContext.RequestServices.GetRequiredService<IConfiguration>();
         var apiKey = appSettings.GetValue<string>("ApiKey");
@@ -34,7 +33,6 @@ public class ApiKeyAttribute : Attribute, IAsyncActionFilter
             };
             return;
         }
-
         await next();
     }
 }
