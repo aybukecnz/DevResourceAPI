@@ -10,12 +10,8 @@ namespace DevResourceAPI
         {
             var securityRequirement = new OpenApiSecurityRequirement();
 
-            // --- DEĞİŞİKLİK BURADA BAŞLIYOR ---
-            
-            // İsteğin metodunu al (GET, POST, DELETE vs.)
             var httpMethod = context.ApiDescription.HttpMethod;
-
-            // KURAL 1 GÜNCELLEMESİ: 
+            // --- KURAL 1: API KEY İŞLEMLERİ  ---
             // Eğer metod "GET" DEĞİLSE Api Key zorunluluğu ekle.
             // (GET ise bu if bloğuna girmez ve kilit koymaz)
             if (httpMethod?.ToUpper() != "GET")
@@ -44,7 +40,6 @@ namespace DevResourceAPI
                 }, new List<string>());
             }
 
-            // Eğer securityRequirement boş değilse operasyona ekle
             if (securityRequirement.Count > 0)
             {
                 operation.Security = new List<OpenApiSecurityRequirement> { securityRequirement };

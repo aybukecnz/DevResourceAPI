@@ -24,7 +24,7 @@ public static class DbSeeder
             // --- AYARLARI OKU ---
             // appsettings.json'dan okur. Bulamazsa "Default" değerleri kullanır.
             var adminPassword = configuration["SeedSettings:AdminPassword"] ?? "Password123!";
-            var adminEmail = configuration["SeedSettings:AdminEmail"] ?? "admin@localhost";
+        //  var adminEmail = configuration["SeedSettings:AdminEmail"] ?? "admin@localhost";
 
             // 1. ROLLERİ OLUŞTUR
             var roles = new[] { "Manager", "User" };
@@ -34,14 +34,14 @@ public static class DbSeeder
                     await roleManager.CreateAsync(new IdentityRole<int>(role));
             }
 
-            // 2. MANAGER KULLANCISI (AYBÜKE)
+            // 2. MANAGER KULLANCISI 
             var adminUser = new User
             {
-                UserName = "aybuke", // Kullanıcı adı
-                Email = adminEmail,
+                UserName = "aybuke", 
+            //    Email = adminEmail,
                 Role = "Manager",
                 CreatedAt = DateTime.UtcNow,
-                EmailConfirmed = true
+            //    EmailConfirmed = true
             };
 
             // Şifreyi ayarlardan gelen değerle oluştur
@@ -49,19 +49,19 @@ public static class DbSeeder
             
             if (result.Succeeded)
             {
-                await userManager.AddToRoleAsync(adminUser, "Manager"); // Yetki ver
+                await userManager.AddToRoleAsync(adminUser, "Manager"); 
             }
 
-            // 3. NORMAL KULLANICI (AHMET) - Test için
+            // 3. NORMAL KULLANICI - Test için
             var normalUser = new User
             {
                 UserName = "ahmet",
                 Role = "User",
                 CreatedAt = DateTime.UtcNow,
-                EmailConfirmed = true
+            //    EmailConfirmed = true
             };
             
-            var res2 = await userManager.CreateAsync(normalUser, "Password123!"); // Ahmet'in şifresi sabit kalabilir
+            var res2 = await userManager.CreateAsync(normalUser, "Password123!"); 
             if (res2.Succeeded)
             {
                 await userManager.AddToRoleAsync(normalUser, "User");

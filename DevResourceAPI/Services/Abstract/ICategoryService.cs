@@ -5,8 +5,7 @@ namespace DevResourceAPI.Services;
 
 public interface ICategoryService
 {
-    // Enterprise Dönüş Tipi: PagedResult
-    Task<ServiceResult<PagedResult<CategoryDto>>> GetAllCategoriesAsync(string? search, int pageNumber, int pageSize);
+    Task<ServiceResult<PagedResult<CategoryDto>>> GetCategoryAsync(string? search, int pageNumber, int pageSize);
 
     Task<ServiceResult<Category?>> GetCategoryByIdAsync(int id);
     Task<ServiceResult<Category>> CreateCategoryAsync(Category category, int userId);

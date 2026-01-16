@@ -22,7 +22,7 @@ public class AppDbContext : IdentityDbContext<User, IdentityRole<int>, int>
     {
         base.OnModelCreating(builder); // Identity ayarları için ZORUNLU
 
-// --- TAKİP (FOLLOW) İLİŞKİSİ AYARLARI ---
+// --- FOLLOW İLİŞKİSİ AYARLARI ---
     
     // İki anahtarın birleşiminden oluşan bir "Composite Key" yapıyoruz.
     // Yani aynı kişi, aynı kişiyi ikinci kez takip edemesin.

@@ -1,7 +1,7 @@
 using System.Net;
 using System.Text.Json;
-using DevResourceAPI.Data; // DbContext için
-using DevResourceAPI.Models; // ErrorLog entity için
+using DevResourceAPI.Data; 
+using DevResourceAPI.Models; 
 using DevResourceAPI.Services; 
 
 

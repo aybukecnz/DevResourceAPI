@@ -23,8 +23,8 @@ public class ResourceService : IResourceService
         int pageSize)
     {
         var query = _context.Resources
-            .Include(r => r.Category) // Kategori ismini çekmek için
-            .Include(r => r.User)     // Yükleyen kullanıcı ismini çekmek için
+            .Include(r => r.Category) 
+            .Include(r => r.User)    
             .AsNoTracking()
             .AsQueryable();
 
@@ -67,8 +67,6 @@ public class ResourceService : IResourceService
             })
             .ToListAsync();
 
-        // 👇 HATA BURADAYDI, ŞİMDİ DÜZELTİYORUZ 👇
-        // PagedResult artık 4 parametre istiyor:
         var pagedResult = new PagedResult<ResourceDto>(
             resources,      // 1. Veri Listesi
             totalRecords,   // 2. Toplam Sayı
@@ -96,7 +94,7 @@ public class ResourceService : IResourceService
         var category = await _context.Categories.FirstOrDefaultAsync(c => c.Id == resource.CategoryId);
         if (category == null) return ServiceResult<Resource>.Fail("Kategori bulunamadı.");
         
-        // Kategori başkasınınsa ekleme yapamaz (Opsiyonel kural, istersen kaldırabilirsin)
+        // Kategori başkasınınsa ekleme yapılamaz 
         if (category.UserId != userId) return ServiceResult<Resource>.Fail("Bu kategori size ait değil.");
 
         resource.Description ??= "";

@@ -16,7 +16,7 @@ public class CategoryService : ICategoryService
     }
 
     // 1. KATEGORİLERİ LİSTELEME (SAYFALAMA + ARAMA)
-    public async Task<ServiceResult<PagedResult<CategoryDto>>> GetAllCategoriesAsync(string? search, int pageNumber, int pageSize)
+    public async Task<ServiceResult<PagedResult<CategoryDto>>> GetCategoryAsync(string? search, int pageNumber, int pageSize)
     {
         var query = _context.Categories
             .Include(c => c.User)
@@ -33,7 +33,7 @@ public class CategoryService : ICategoryService
         // B. Toplam Kayıt Sayısı (Sayfalama hesabı için şart)
         var totalRecords = await query.CountAsync();
         
-        // C. Sıralama (En son güncellenen veya oluşturulan en üstte)
+        // C. Sıralama 
         query = query.OrderByDescending(c => c.UpdatedAt ?? c.CreatedAt);
 
         // D. Sayfalama (Veriyi burada bölüyoruz)
@@ -129,9 +129,9 @@ public class CategoryService : ICategoryService
         if (category.Resources.Any()) 
             return ServiceResult.Fail("Kategori dolu! Önce içindeki kaynakları silmelisiniz.");
 
-        // 👇 SOFT DELETE İŞLEMİ BURADA 👇
+        // SOFT DELETE İŞLEMİ BURADA 
         category.IsDeleted = true;            // Silindi bayrağını kaldır
-        category.UpdatedAt = DateTime.UtcNow; // Silinme tarihini güncelle (Update tarihi olarak)
+        category.UpdatedAt = DateTime.UtcNow; // Silinme tarihini güncelle 
 
         _context.Categories.Update(category); 
         await _context.SaveChangesAsync();

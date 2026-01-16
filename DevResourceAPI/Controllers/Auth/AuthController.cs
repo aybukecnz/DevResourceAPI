@@ -44,16 +44,14 @@ public class AuthController : ControllerBase
     }
 
     [HttpDelete("delete")]
-    [Authorize] //  Sadece giriş yapmış kullanıcı silebilir
+    [Authorize] 
     public async Task<IActionResult> DeleteAccount()
     {
-        // Kullanıcı adını Token'dan alıyoruz (Güvenli yöntem)
         var username = User.Identity?.Name;
 
         if (string.IsNullOrEmpty(username))
             return Unauthorized("Kullanıcı bulunamadı.");
 
-        // Artık sadece username gönderiyoruz (Service böyle istiyor)
         var result = await _authService.DeleteAccountAsync(username);
 
         if (!result.Success)

@@ -9,35 +9,35 @@ using OpenApi = Microsoft.OpenApi.Models;
 using DevResourceAPI.Models; // User modeli için
 using Microsoft.AspNetCore.Identity;
 
-var builder = WebApplication.CreateBuilder(args);
+    var builder = WebApplication.CreateBuilder(args);
 
-// --- VERİTABANI ---
-builder.Services.AddDbContext<AppDbContext>(options =>
+    // --- VERİTABANI ---
+    builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
 );
-builder.Services.AddIdentityApiEndpoints<User>(options => 
+    builder.Services.AddIdentityApiEndpoints<User>(options => 
 {
-    options.User.RequireUniqueEmail = false;
+ //   options.User.RequireUniqueEmail = false;
     options.Password.RequireDigit = false;
     options.Password.RequiredLength = 3;
     options.Password.RequireNonAlphanumeric = false;
     options.Password.RequireUppercase = false;
     options.Password.RequireLowercase = false;
 })
-.AddRoles<IdentityRole<int>>()
-.AddEntityFrameworkStores<AppDbContext>();
-// --- SERVİSLER ---
-builder.Services.AddScoped<ICategoryService, CategoryService>();
-builder.Services.AddScoped<IResourceService, ResourceService>();
-builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<ISocialService, SocialService>();
-builder.Services.AddScoped<IUserService, UserService>(); 
+    .AddRoles<IdentityRole<int>>()
+    .AddEntityFrameworkStores<AppDbContext>();
+    // --- SERVİSLER ---
+    builder.Services.AddScoped<ICategoryService, CategoryService>();
+    builder.Services.AddScoped<IResourceService, ResourceService>();
+    builder.Services.AddScoped<IAuthService, AuthService>();
+    builder.Services.AddScoped<ISocialService, SocialService>();
+    builder.Services.AddScoped<IUserService, UserService>(); 
 
-// --- CONTROLLERS ---
-builder.Services.AddControllers().AddNewtonsoftJson();
+    // --- CONTROLLERS ---
+    builder.Services.AddControllers().AddNewtonsoftJson();
 
-// --- AUTHENTICATION ---
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    // --- AUTHENTICATION ---
+    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         options.TokenValidationParameters = new TokenValidationParameters
@@ -49,9 +49,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = false
         };
     });
-// --- SWAGGER AYARLARI (DÜZELTİLEN KISIM) ---
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c =>
+    // --- SWAGGER AYARLARI  ---
+    builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApi.OpenApiInfo { Title = "DevResourceAPI", Version = "v1" });
 
@@ -66,7 +66,7 @@ builder.Services.AddSwaggerGen(c =>
         BearerFormat = "JWT"
     });
 
-    // 2. API Key Kutusu Tanımı (Ana Butonda Görünecek - İstediğin Gibi)
+    // 2. API Key Kutusu Tanımı 
     c.AddSecurityDefinition("ApiKey", new OpenApi.OpenApiSecurityScheme
     {
         Description = "API Key girişi",
@@ -80,27 +80,27 @@ builder.Services.AddSwaggerGen(c =>
     c.OperationFilter<SwaggerFileOperationFilter>();
 });
 
-var app = builder.Build();
-// Bu satır, hava yastığını devreye sokar (globalexceptionmiddleware'i)
-app.UseMiddleware<DevResourceAPI.Middlewares.GlobalExceptionMiddleware>();
-if (app.Environment.IsDevelopment())
+    var app = builder.Build();
+    // Bu satır, hava yastığını devreye sokar (globalexceptionmiddleware'i)
+    app.UseMiddleware<DevResourceAPI.Middlewares.GlobalExceptionMiddleware>();
+    if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
-// 1. ÖNCE KİMLİK DOĞRULAMA (Sen kimsin?)
-app.UseAuthentication();
-// 2. YENİ GÜVENLİK KATMANI (Anahtarın var mı?)
-app.UseMiddleware<DevResourceAPI.Middleware.ApiKeyMiddleware>();
-// 3. SONRA YETKİLENDİRME (Yetkin var mı?)
-app.UseAuthorization();
-app.MapControllers();
+    app.UseHttpsRedirection();
+    // 1. ÖNCE KİMLİK DOĞRULAMA (Sen kimsin?)
+    app.UseAuthentication();
+    // 2. YENİ GÜVENLİK KATMANI (Anahtarın var mı?)
+    app.UseMiddleware<DevResourceAPI.Middleware.ApiKeyMiddleware>();
+    // 3. SONRA YETKİLENDİRME (Yetkin var mı?)
+    app.UseAuthorization();
+    app.MapControllers();
 
 
-if (app.Environment.IsDevelopment())
+    if (app.Environment.IsDevelopment())
 {
     await DevResourceAPI.Data.DbSeeder.SeedData(app, builder.Configuration);
 }
-app.Run();
+    app.Run();

@@ -2,7 +2,6 @@ namespace DevResourceAPI.Services;
 
 public class ServiceResult<T>
 {
-    // veri döndüren servis işlemlerinin sonucunu temsil eden genel sınıf (ex: login olunca token döndürmek gibi)
     public bool Success { get; set; }
     public T? Data { get; set; }
     public string? Message { get; set; } = string.Empty;
@@ -26,7 +25,6 @@ public class ServiceResult<T>
             Message = message };
     }
 }
-    // veri döndürmeyen servis işlemlerinin sonucunu temsil eden genel sınıf (ex: register, delete işlemi gibi)
     public class ServiceResult
     {
         public bool Success {get; set;}

@@ -7,7 +7,6 @@ namespace DevResourceAPI.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-// KİLİT: Sadece "Manager" rolü olanlar erişebilir.
 [Authorize(Roles = "Manager")] 
 public class DashboardController : ControllerBase
 {

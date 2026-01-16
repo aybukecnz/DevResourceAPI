@@ -7,7 +7,7 @@ namespace DevResourceAPI.Controllers.Users;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize] // İçeri giren herkesin Token'ı olmalı.
+[Authorize] 
 public class UserController : ControllerBase
 {
     private readonly IAuthService _authService;
@@ -44,7 +44,7 @@ public class UserController : ControllerBase
     // Bir kullanıcıyı sil
     // DELETE: api/user/5
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Manager")] // <--- Sadece patron silebilir
+    [Authorize(Roles = "Manager")] 
     public async Task<IActionResult> DeleteUser(int id)
     {
         var result = await _authService.DeleteUserByIdAsync(id);

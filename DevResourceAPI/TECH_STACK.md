@@ -3,7 +3,7 @@
 Bu proje, yazılımcıların kaynaklarını kategorize etmek ve yönetmek amacıyla modern .NET teknolojileri kullanılarak geliştirilmiştir.
 
 ## Core Technologies
-* **Runtime:** .NET 8.0 SDK
+* **Runtime:** .NET 9.0 SDK
 * **Language:** C# 12
 * **Framework:** ASP.NET Core Web API
 
