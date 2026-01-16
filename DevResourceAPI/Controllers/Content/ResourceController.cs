@@ -20,7 +20,7 @@ public class ResourceController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAllResources(
+    public async Task<IActionResult> GetResources(
         [FromQuery] string? search,
         [FromQuery] int? categoryId,
         [FromQuery] int? userId,        
@@ -35,7 +35,7 @@ public class ResourceController : ControllerBase
         }
 
         // Servisten PagedResult dönüyor
-        var result = await _resourceService.GetAllResourcesAsync(
+        var result = await _resourceService.GetResourcesAsync(
             categoryId, search, pageNumber, pageSize);
 
         if (!result.Success) return BadRequest(result);

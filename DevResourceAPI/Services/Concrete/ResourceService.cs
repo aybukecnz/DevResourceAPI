@@ -3,7 +3,7 @@ using DevResourceAPI.Models;
 using DevResourceAPI.DTOs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.JsonPatch;
-using DevResourceAPI.Services;
+using DevResourceAPI.Models.Common; // PagedResult için
 
 namespace DevResourceAPI.Services;
 
@@ -16,7 +16,7 @@ public class ResourceService : IResourceService
         _context = context;
     }
 
-    public async Task<ServiceResult<PagedResult<ResourceDto>>> GetAllResourcesAsync(
+    public async Task<ServiceResult<PagedResult<ResourceDto>>> GetResourcesAsync(
         int? categoryId, 
         string? search, 
         int pageNumber, 
@@ -61,6 +61,10 @@ public class ResourceService : IResourceService
                 Title = r.Title,
                 Description = r.Description!,
                 Url = r.Url,
+                
+                // ARTIK 0 GELMEYECEK, FRONTEND İÇİN ÖNEMLİ
+                CategoryId = r.CategoryId, 
+                
                 CategoryName = r.Category != null ? r.Category.Name : "Genel",
                 CreatedBy = r.User != null ? r.User.UserName! : "Anonim",
                 CreatedAt = r.CreatedAt
@@ -68,10 +72,10 @@ public class ResourceService : IResourceService
             .ToListAsync();
 
         var pagedResult = new PagedResult<ResourceDto>(
-            resources,      // 1. Veri Listesi
-            totalRecords,   // 2. Toplam Sayı
-            pageNumber,     // 3. Sayfa Numarası (YENİ)
-            pageSize        // 4. Sayfa Boyutu (YENİ)
+            resources,      
+            totalRecords,   
+            pageNumber,     
+            pageSize        
         );
 
         return ServiceResult<PagedResult<ResourceDto>>.Ok(pagedResult);
@@ -94,12 +98,11 @@ public class ResourceService : IResourceService
         var category = await _context.Categories.FirstOrDefaultAsync(c => c.Id == resource.CategoryId);
         if (category == null) return ServiceResult<Resource>.Fail("Kategori bulunamadı.");
         
-        // Kategori başkasınınsa ekleme yapılamaz 
         if (category.UserId != userId) return ServiceResult<Resource>.Fail("Bu kategori size ait değil.");
 
         resource.Description ??= "";
         resource.UserId = userId;
-        resource.CreatedAt = DateTime.UtcNow; // Tarih ataması önemli
+        resource.CreatedAt = DateTime.UtcNow;
         
         _context.Resources.Add(resource);
         await _context.SaveChangesAsync();
@@ -167,7 +170,12 @@ public class ResourceService : IResourceService
         if (resource.UserId != currentUserId && currentUserRole != "Manager")
             return ServiceResult.Fail("Yetkiniz yok.");
 
-        _context.Resources.Remove(resource);
+        //  SOFT DELETE UYGULANDI
+        // _context.Resources.Remove(resource); // ESKİ (Hard Delete)
+        
+        resource.IsDeleted = true; // YENİ (Soft Delete)
+        resource.UpdatedAt = DateTime.UtcNow;
+        
         await _context.SaveChangesAsync();
         return ServiceResult.Ok("Kaynak silindi.");
     }

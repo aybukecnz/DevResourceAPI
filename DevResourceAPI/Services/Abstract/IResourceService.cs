@@ -15,5 +15,5 @@ public interface IResourceService
     Task<ServiceResult> PatchResourceAsync(int id, JsonPatchDocument<Resource> patchDoc, int currentUserId, string currentUserRole);
     
     Task<ServiceResult> DeleteResourceAsync(int id, int currentUserId, string currentUserRole);
-    Task<ServiceResult<PagedResult<ResourceDto>>> GetAllResourcesAsync(int? categoryId, string? search, int pageNumber, int pageSize);
+    Task<ServiceResult<PagedResult<ResourceDto>>> GetResourcesAsync(int? categoryId, string? search, int pageNumber, int pageSize);
 }
