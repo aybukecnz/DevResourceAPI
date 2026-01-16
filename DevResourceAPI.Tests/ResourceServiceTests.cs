@@ -79,4 +79,41 @@ public class ResourceServiceTests
         Assert.Equal(2, result.Data!.TotalRecords); // 2 kayıt bekliyoruz
         Assert.Equal("Test Kaynak 1", result.Data.Items.OrderBy(r => r.Title).First().Title);
     }
+    [Fact]
+    public async Task CreateResource_ShouldAddResource_WhenValidRequest()
+    {
+        // 1. ARRANGE (Hazırlık)
+        var context = GetInMemoryDbContext();
+        var service = new ResourceService(context);
+
+        // Önce gerekli yan verileri (User & Category) ekleyelim
+        var user = new User { UserName = "aybuke", Email = "test@test.com", CreatedAt = DateTime.UtcNow };
+        context.Users.Add(user);
+        await context.SaveChangesAsync();
+
+        var category = new Category { Name = "Backend", UserId = user.Id, CreatedAt = DateTime.UtcNow };
+        context.Categories.Add(category);
+        await context.SaveChangesAsync();
+
+        // Eklenecek yeni kaynağı hazırlayalım
+        var newResource = new Resource
+        {
+            Title = "GitHub Actions",
+            Url = "https://github.com",
+            Description = "CI/CD Öğreniyorum",
+            CategoryId = category.Id
+        };
+
+        // 2. ACT (Eylem - Metodu Çalıştır)
+        // Not: CreateResourceAsync metodun sadece Resource nesnesi ve UserId alıyor olmalı.
+        var result = await service.CreateResourceAsync(newResource, user.Id);
+
+        // 3. ASSERT (Doğrulama)
+        Assert.True(result.Success, "Ekleme başarısız: " + result.Message);
+        Assert.True(result.Data!.Id > 0, "Yeni eklenen kaynağın ID'si 0 olmamalı.");
+        
+        // Veritabanını kontrol et
+        var dbData = await context.Resources.FirstOrDefaultAsync(r => r.Title == "GitHub Actions");
+        Assert.NotNull(dbData); // Veritabanında kayıt oluşmuş mu?
+    }
 }
