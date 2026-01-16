@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using DevResourceAPI.Models;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace DevResourceAPI.Data;
 
@@ -18,10 +19,32 @@ public class AppDbContext : IdentityDbContext<User, IdentityRole<int>, int>
     public DbSet<UserFollow> UserFollows { get; set; }
     public DbSet<ErrorLog> ErrorLogs { get; set; }
 
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+{
+    // O specific sarı uyarıyı (Global Query Filter uyarısı) susturuyorum.
+    // Çünkü kod tarafında dolu kategorinin silinmesini zaten engelledim.
+    optionsBuilder.ConfigureWarnings(warnings => 
+        warnings.Ignore(CoreEventId.PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning));
+    
+    base.OnConfiguring(optionsBuilder);
+}
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder); // Identity ayarları için ZORUNLU
 
+    // GLOBAL QUERY FILTER (SOFT DELETE KORUMASI) 
+    // Artık her sorguda "IsDeleted == false" şartı otomatik eklenecek.
+    
+    // 1. Kategoriler için koruma
+    builder.Entity<Category>().HasQueryFilter(c => !c.IsDeleted);
+
+    // 2. Kaynaklar için koruma
+    builder.Entity<Resource>().HasQueryFilter(r => !r.IsDeleted);
+
+    // (Eğer User veya başka tablolarında da Soft Delete varsa onları da buraya ekle)
+    // modelBuilder.Entity<User>().HasQueryFilter(u => !u.IsDeleted);
+
+    base.OnModelCreating(builder);
 // --- FOLLOW İLİŞKİSİ AYARLARI ---
     
     // İki anahtarın birleşiminden oluşan bir "Composite Key" yapıyoruz.

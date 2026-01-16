@@ -3,14 +3,15 @@ using System.Text.Json;
 using DevResourceAPI.Data; 
 using DevResourceAPI.Models; 
 using DevResourceAPI.Services; 
-
+using Serilog; 
 
 namespace DevResourceAPI.Middlewares;
 
 public class GlobalExceptionMiddleware
 {
     private readonly RequestDelegate _next;
-    private readonly ILogger<GlobalExceptionMiddleware> _logger;
+    // Microsoft'un ILogger'ı artık arka planda Serilog kullanıyor (Program.cs sayesinde)
+    private readonly ILogger<GlobalExceptionMiddleware> _logger; 
 
     public GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger)
     {
@@ -22,25 +23,27 @@ public class GlobalExceptionMiddleware
     {
         try
         {
-            // Trafiği normal akışına bırak (Controller'a git)
+            // Trafiği normal akışına bırak
             await _next(context);
         }
         catch (Exception ex)
         {
-            // Hata olursa YAKALA 
-            _logger.LogError(ex, "Sunucuda beklenmeyen bir hata oluştu.");
-            // Hata Kayıt İşlemi 
+            // ÖNCE DOSYAYA YAZ (Garanti Olsun)
+            // Veritabanı çökse bile bu log dosyada (logs/log-.txt) duracak.
+            _logger.LogError(ex, "Sistemde kritik bir hata oluştu! Mesaj: {Message}", ex.Message);
+
+            // SONRA VERİTABANINA DENE (Dashboard İçin)
             await LogErrorToDatabase(context, ex);
-            // Kullanıcıya Cevap Verme İşlemi 
+
+            // KULLANICIYA CEVAP VER
             await HandleExceptionAsync(context, ex);
         }
     }
-    // Veritabanına Kayıt Yapan Metot
+
     private async Task LogErrorToDatabase(HttpContext context, Exception ex)
     {
         try
         {
-            // Middleware içinden Scoped servislere (DbContext) erişmek için bu yöntemi kullanırız:
             var dbContext = context.RequestServices.GetService<AppDbContext>();
 
             if (dbContext != null)
@@ -51,31 +54,32 @@ public class GlobalExceptionMiddleware
                     RequestMethod = context.Request.Method,
                     ErrorMessage = ex.Message,
                     StackTrace = ex.StackTrace,
-                    // CreatedAt BaseEntity sayesinde otomatik dolacak
+                    // CreatedAt BaseEntity'den gelir
                 };
 
                 dbContext.ErrorLogs.Add(errorLog);
                 await dbContext.SaveChangesAsync();
             }
         }
-        catch (Exception logEx)
+        catch (Exception dbEx)
         {
-            Console.WriteLine($"Hata loglanırken hata oluştu: {logEx.Message}");
+            // Eskiden: Console.WriteLine(...) yapıyordun, kaybolup gidiyordu.
+            // Şimdi: Veritabanına yazamazsam, bunu da Serilog ile dosyaya "FATAL" olarak yazıyorum.
+            
+            Log.Fatal(dbEx, "Veritabanı Loglama Servisi ÇÖKTÜ! Asıl Hata Loglanamadı. Asıl Hata: {OriginalError}", ex.Message);
         }
     }
+
     private static Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
         context.Response.ContentType = "application/json";
-        
-        // Hata kodu her zaman 500 (Internal Server Error) dönecek
         context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
 
-        // "ServiceResult" yapısını kullan 
         var response = ServiceResult.Fail("Sunucu kaynaklı bir hata oluştu. Lütfen daha sonra tekrar deneyiniz.");
 
         var jsonResponse = JsonSerializer.Serialize(response, new JsonSerializerOptions
         {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase // camelCase (success, message) formatı için
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase 
         });
 
         return context.Response.WriteAsync(jsonResponse);

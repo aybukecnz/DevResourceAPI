@@ -11,8 +11,24 @@ using Microsoft.AspNetCore.Identity;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using DevResourceAPI.Validators;
+using Serilog;
+using Serilog.Events;
 
     var builder = WebApplication.CreateBuilder(args);
+
+    // --- 1. SERILOG AYARI (MANUEL & GÜVENLİ) ---
+    // JSON dosyasını okumaya çalışmak yerine ayarları elle veriyoruz.
+    Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+    .MinimumLevel.Override("System", LogEventLevel.Warning)
+    .Enrich.FromLogContext()
+    .WriteTo.Console() // Konsola yaz
+    .WriteTo.File("logs/log-.txt", rollingInterval: RollingInterval.Day) // Dosyaya yaz
+    .CreateLogger();
+
+// Host'a Serilog'u kullanmasını söylüyoruz
+builder.Host.UseSerilog();
 
     // --- VERİTABANI ---
     builder.Services.AddDbContext<AppDbContext>(options =>
@@ -88,6 +104,8 @@ using DevResourceAPI.Validators;
 });
 
     var app = builder.Build();
+    // Bu satır, her gelen HTTP isteğini otomatik loglar (GET /api/resources -> 200 OK gibi)
+    app.UseSerilogRequestLogging();
     // Bu satır, hava yastığını devreye sokar (globalexceptionmiddleware'i)
     app.UseMiddleware<DevResourceAPI.Middlewares.GlobalExceptionMiddleware>();
     if (app.Environment.IsDevelopment())

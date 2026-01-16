@@ -15,7 +15,7 @@ public class CategoryService : ICategoryService
         _context = context;
     }
 
-    // 1. KATEGORİLERİ LİSTELEME (SAYFALAMA + ARAMA)
+    // KATEGORİLERİ LİSTELEME (SAYFALAMA + ARAMA)
     public async Task<ServiceResult<PagedResult<CategoryDto>>> GetCategoryAsync(string? search, int pageNumber, int pageSize)
     {
         var query = _context.Categories
@@ -63,7 +63,7 @@ public class CategoryService : ICategoryService
         return ServiceResult<PagedResult<CategoryDto>>.Ok(pagedResult);
     }
 
-    // 2. TEK KATEGORİ GETİRME
+    // TEK KATEGORİ GETİRME
     public async Task<ServiceResult<Category?>> GetCategoryByIdAsync(int id)
     {
         var category = await _context.Categories.FindAsync(id);
@@ -74,7 +74,7 @@ public class CategoryService : ICategoryService
         return ServiceResult<Category?>.Ok(category);
     }
 
-    // 3. KATEGORİ OLUŞTURMA
+    // KATEGORİ OLUŞTURMA
     public async Task<ServiceResult<Category>> CreateCategoryAsync(Category category, int userId)
     {
         // Aynı isimde kategori var mı?
@@ -92,7 +92,7 @@ public class CategoryService : ICategoryService
         return ServiceResult<Category>.Ok(category, "Kategori başarıyla oluşturuldu.");
     }
 
-    // 4. KATEGORİ GÜNCELLEME
+    // KATEGORİ GÜNCELLEME
     public async Task<ServiceResult> UpdateCategoryAsync(int id, Category category, int currentUserId, string currentUserRole)
     {
         var existing = await _context.Categories.FindAsync(id);
@@ -110,32 +110,32 @@ public class CategoryService : ICategoryService
         return ServiceResult.Ok("Kategori güncellendi.");
     }
 
-    // 5. KATEGORİ SİLME (SOFT DELETE)
     public async Task<ServiceResult> DeleteCategoryAsync(int id, int currentUserId, string currentUserRole)
-    {
-        // İlişkili kaynakları (Resources) kontrol etmek için Include yapıyoruz
-        var category = await _context.Categories
-            .Include(c => c.Resources)
-            .FirstOrDefaultAsync(c => c.Id == id);
+{
+    // Sadece Kategoriyi Bul (Include yapma, RAM şişmesin)
+    var category = await _context.Categories.FindAsync(id);
 
-        if (category == null) 
-            return ServiceResult.Fail("Kategori bulunamadı.");
+    if (category == null) 
+        return ServiceResult.Fail("Kategori bulunamadı.");
 
-        // Yetki Kontrolü
-        if (category.UserId != currentUserId && currentUserRole != "Manager")
-            return ServiceResult.Fail("Bu işlem için yetkiniz yok.");
+    // Yetki Kontrolü
+    if (currentUserRole != "Manager" && category.UserId != currentUserId)
+        return ServiceResult.Fail("Bu işlem için yetkiniz yok.");
 
-        // İş Kuralı: İçi dolu kategori silinemez
-        if (category.Resources.Any()) 
-            return ServiceResult.Fail("Kategori dolu! Önce içindeki kaynakları silmelisiniz.");
+    // Veritabanına direkt soruyoruz: "Bu kategoriye ait SİLİNMEMİŞ kaynak var mı?"
+    // SQL tarafında sadece "EXISTS" sorgusu çalışır, veri çekmez. Çok hızlıdır.
+    bool isCategoryInUse = await _context.Resources
+                                         .AnyAsync(r => r.CategoryId == id && !r.IsDeleted);
 
-        // SOFT DELETE İŞLEMİ BURADA 
-        category.IsDeleted = true;            // Silindi bayrağını kaldır
-        category.UpdatedAt = DateTime.UtcNow; // Silinme tarihini güncelle 
+    if (isCategoryInUse) 
+        return ServiceResult.Fail("Bu kategori dolu! İçindeki aktif kaynakları silmeden veya taşımadan kategoriyi silemezsiniz.");
 
-        _context.Categories.Update(category); 
-        await _context.SaveChangesAsync();
+    // 4. SOFT DELETE İŞLEMİ
+    category.IsDeleted = true;            
+    category.UpdatedAt = DateTime.UtcNow; 
 
-        return ServiceResult.Ok("Kategori başarıyla silindi (Geri Dönüşüm Kutusuna Atıldı).");
-    }
-}
+    _context.Categories.Update(category); 
+    await _context.SaveChangesAsync();
+
+    return ServiceResult.Ok("Kategori başarıyla silindi (Geri Dönüşüm Kutusuna Atıldı).");
+}}
