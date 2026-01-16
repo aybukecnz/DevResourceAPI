@@ -116,4 +116,70 @@ public class ResourceServiceTests
         var dbData = await context.Resources.FirstOrDefaultAsync(r => r.Title == "GitHub Actions");
         Assert.NotNull(dbData); // Veritabanında kayıt oluşmuş mu?
     }
+    [Fact]
+    public async Task DeleteResource_ShouldReturnSuccess_WhenResourceExists()
+    {
+        // 1. ARRANGE (Hazırlık)
+        var context = GetInMemoryDbContext();
+        var service = new ResourceService(context);
+
+        // Önce silinecek veriyi oluşturalım
+        var user = new User { UserName = "silici_kullanici", CreatedAt = DateTime.UtcNow };
+        context.Users.Add(user);
+        await context.SaveChangesAsync();
+
+        var resource = new Resource 
+        { 
+            Title = "Silinecek Kaynak", 
+            Url = "https://delete.me", 
+            UserId = user.Id,
+            CategoryId = 1,
+            IsDeleted = false
+        };
+        context.Resources.Add(resource);
+        await context.SaveChangesAsync();
+
+        // 2. ACT (Eylem)
+        // Kullanıcı kendi oluşturduğu kaynağı siliyor
+        var result = await service.DeleteResourceAsync(resource.Id, user.Id, currentUserRole: "User");
+
+        // 3. ASSERT (Doğrulama)
+        Assert.True(result.Success, "Silme işlemi başarısız oldu: " + result.Message);
+
+        // Veritabanından kontrol edelim
+        var deletedResource = await context.Resources.FindAsync(resource.Id);
+        
+        Assert.NotNull(deletedResource); // Veri fiziksel olarak hala orada (null değil)
+        Assert.True(deletedResource.IsDeleted, "Hata: IsDeleted alanı true olarak işaretlenmedi!"); // Ama silindi olarak işaretli
+    }
+        [Fact]
+public async Task DeleteResource_ShouldReturnError_WhenUserIsNotOwner()
+{
+    // 1. ARRANGE
+    var context = GetInMemoryDbContext();
+    var service = new ResourceService(context);
+
+    // Bir asıl sahip (Owner), bir de kötü niyetli (Stranger) kullanıcı oluşturalım
+    var owner = new User { UserName = "owner", CreatedAt = DateTime.UtcNow };
+    var stranger = new User { UserName = "stranger", CreatedAt = DateTime.UtcNow };
+    context.Users.AddRange(owner, stranger);
+    await context.SaveChangesAsync();
+
+    // Owner'a ait bir kaynak ekleyelim
+    var resource = new Resource { Title = "Gizli Kaynak", UserId = owner.Id, CategoryId = 1 };
+    context.Resources.Add(resource);
+    await context.SaveChangesAsync();
+
+    // 2. ACT
+    // Dikkat: Kaynak Owner'ın, ama silmeye çalışan Stranger!
+    var result = await service.DeleteResourceAsync(resource.Id, stranger.Id, "User");
+
+    // 3. ASSERT
+    Assert.False(result.Success); // Başarısız olmalı
+    Assert.Contains("yetkiniz yok", result.Message.ToLower()); // Uyarı mesajı vermeli
+    
+    // Veritabanında hala silinmemiş olmalı
+    var dbResource = await context.Resources.FindAsync(resource.Id);
+    Assert.False(dbResource!.IsDeleted); 
+}
 }
