@@ -2,8 +2,8 @@ using FluentValidation;
 using DevResourceAPI.DTOs; 
 
 namespace DevResourceAPI.Validators;
-
-public class ResourceValidator : AbstractValidator<ResourceDto>
+// DOĞRU: Girdi (Create) DTO'sunu kontrol edecek
+public class ResourceValidator : AbstractValidator<CreateResourceDto> 
 {
     public ResourceValidator()
     {
