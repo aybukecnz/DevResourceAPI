@@ -4,7 +4,7 @@ using DevResourceAPI.Services;
 using DevResourceAPI.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.JsonPatch;
-using DevResourceAPI.Extensions; // 👈 Extension metodumuzu buraya ekledik
+using DevResourceAPI.Extensions; //  Extension metodumuzu buraya ekledik
 
 namespace DevResourceAPI.Controllers;
 
@@ -44,18 +44,35 @@ public class ResourceController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<Resource>> GetResourceById(int id)
+public async Task<ActionResult<ResourceDto>> GetResourceById(int id)
+{
+    var result = await _resourceService.GetResourceByIdAsync(id);
+    if (!result.Success) return NotFound(new { message = "Kaynak bulunamadı." });
+
+    var resource = result.Data!;
+
+    // Entity -> DTO Dönüşümü (Mapping)
+    var resourceDto = new ResourceDto
     {
-        var result = await _resourceService.GetResourceByIdAsync(id);
-        if (!result.Success) return NotFound(new { message = "Kaynak bulunamadı." });
-        return Ok(result.Data);
-    }
+        Id = resource.Id,
+        Title = resource.Title,
+        Url = resource.Url,
+        Description = resource.Description ?? "",
+        CategoryId = resource.CategoryId,
+        CategoryName = resource.Category != null ? resource.Category.Name : "Genel",
+        OwnerName = resource.User != null ? resource.User.UserName! : "Bilinmiyor", // Null check eklendi
+        CreatedBy = resource.User != null ? resource.User.UserName! : "Bilinmiyor",
+        CreatedAt = resource.CreatedAt
+    };
+
+    return Ok(resourceDto);
+}
 
     [HttpPost]
     [Authorize]
     public async Task<ActionResult<ResourceDto>> CreateResource([FromBody] CreateResourceDto request)
     {
-        // 🧹 TEMİZLİK 1: Extension Kullanımı
+        //  TEMİZLİK 1: Extension Kullanımı
         var userId = User.GetUserId();
         var userName = User.Identity?.Name ?? "Kullanıcı";
 
@@ -69,7 +86,7 @@ public class ResourceController : ControllerBase
             UserId = userId
         };
 
-        // 🧹 TEMİZLİK 2: Try-Catch bloğu kalktı (GlobalExceptionMiddleware halledecek)
+        //  TEMİZLİK 2: Try-Catch bloğu kalktı (GlobalExceptionMiddleware halledecek)
         var result = await _resourceService.CreateResourceAsync(resource, userId);
 
         if (!result.Success) return BadRequest(new { message = result.Message });
@@ -95,7 +112,7 @@ public class ResourceController : ControllerBase
     [Authorize]
     public async Task<IActionResult> UpdateResource(int id, [FromBody] Resource resource)
     {
-        // 🧹 TEMİZLİK: Tekrarlayan kodlar gitti, Extension geldi
+        //  TEMİZLİK: Tekrarlayan kodlar gitti, Extension geldi
         var result = await _resourceService.UpdateResourceAsync(
             id, 
             resource, 
@@ -113,7 +130,7 @@ public class ResourceController : ControllerBase
     {
         if (patchDoc == null) return BadRequest();
 
-        // 🧹 TEMİZLİK: Tekrarlayan kodlar gitti
+        //  TEMİZLİK: Tekrarlayan kodlar gitti
         var result = await _resourceService.PatchResourceAsync(
             id, 
             patchDoc, 
@@ -129,7 +146,7 @@ public class ResourceController : ControllerBase
     [Authorize]
     public async Task<IActionResult> DeleteResource(int id)
     {
-        // 🧹 TEMİZLİK: Tekrarlayan kodlar gitti
+        //  TEMİZLİK: Tekrarlayan kodlar gitti
         var result = await _resourceService.DeleteResourceAsync(
             id, 
             User.GetUserId(), 
